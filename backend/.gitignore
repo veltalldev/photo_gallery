@@ -55,5 +55,6 @@ coverage.xml
 .env.*
 
 # Local photo storage (for development)
-photos/
+photos
+!photos/
 uploads/
