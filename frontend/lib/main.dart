@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:photo_gallery/widgets/generation_dialog.dart';
 
 void main() {
   runApp(const MyApp());
@@ -36,7 +40,8 @@ class _PhotoGalleryScreenState extends State<PhotoGalleryScreen> {
   late final http.Client _client;
   List<String> _photos = [];
   bool _isLoading = true;
-  // bool _isGenerating = false;
+  bool _isGenerating = false;
+  String? _selectedPhoto;
   String _error = '';
 
   // Replace with your PC's local IP address when testing on physical device
@@ -88,78 +93,140 @@ class _PhotoGalleryScreenState extends State<PhotoGalleryScreen> {
     }
   }
 
-  // Future<void> _triggerGeneration() async {
-  //   try {
-  //     setState(() {
-  //       _isGenerating = true;
-  //     });
+  Future<void> _showGenerationDialog() async {
+    if (_selectedPhoto == null || _isGenerating) return;
 
-  //     final response = await http.post(
-  //       Uri.parse('$invokeAiUrl/api/v1/queue/default/enqueue_batch'),
-  //       headers: {
-  //         'Content-Type': 'application/json',
-  //         'Accept': 'application/json',
-  //       },
-  //       body: json.encode({
-  //         "batch": {
-  //           "batch_id": "flutter_batch_001",
-  //           "origin": "flutter_app",
-  //           "destination": "default",
-  //           "data": [
-  //             [
-  //               {
-  //                 "node_path": "main",
-  //                 "field_name": "prompt",
-  //                 "items": ["a photograph of a cat"]
-  //               }
-  //             ]
-  //           ],
-  //           "graph": {
-  //             "id": "default",
-  //             "nodes": {
-  //               "main": {
-  //                 "id": "main",
-  //                 "type": "sdxl_img2img", // Using a type from the valid list
-  //                 "is_intermediate": false,
-  //                 "use_cache": true,
-  //                 "width": 1024,
-  //                 "height": 1024,
-  //                 "seed": 12345,
-  //                 "cfg_scale": 7.5,
-  //                 "steps": 30
-  //               }
-  //             },
-  //             "edges": []
-  //           },
-  //           "runs": 1
-  //         },
-  //         "prepend": false
-  //       }),
-  //     );
+    showDialog(
+      context: context,
+      builder: (context) => GenerationDialog(
+        onSubmit: (additionalPrompt, count, seed) {
+          _triggerMoreLikeThis(additionalPrompt, count, seed);
+        },
+      ),
+    );
+  }
 
-  //     if (response.statusCode == 200 || response.statusCode == 201) {
-  //       ScaffoldMessenger.of(context).showSnackBar(
-  //         const SnackBar(content: Text('Generation started!')),
-  //       );
+  Future<void> _triggerMoreLikeThis(
+      String additionalPrompt, int count, int? seed) async {
+    if (_selectedPhoto == null || _isGenerating) return;
 
-  //       // Refresh the gallery after a delay to show new images
-  //       Future.delayed(const Duration(seconds: 5), () {
-  //         _loadPhotos();
-  //       });
-  //     } else {
-  //       throw Exception(
-  //           'Failed to start generation: ${response.statusCode}\nResponse: ${response.body}');
-  //     }
-  //   } catch (e) {
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //       SnackBar(content: Text('Error: $e')),
-  //     );
-  //   } finally {
-  //     setState(() {
-  //       _isGenerating = false;
-  //     });
-  //   }
-  // }
+    setState(() {
+      _isGenerating = true;
+    });
+
+    try {
+      // First, get the metadata for the selected image
+      final metadataResponse = await _client.get(
+        Uri.parse('$baseUrl/api/metadata/${_selectedPhoto!}'),
+      );
+
+      if (metadataResponse.statusCode != 200) {
+        throw Exception(
+            'Failed to get image metadata: ${metadataResponse.statusCode}');
+      }
+
+      final metadata = json.decode(metadataResponse.body);
+
+      // Add additional prompt if provided
+      if (additionalPrompt.isNotEmpty) {
+        final existingPrompt = metadata['prompt'] ?? '';
+        metadata['prompt'] = '$existingPrompt, $additionalPrompt';
+      }
+
+      // Update seed if specified
+      if (seed != null) {
+        metadata['seed'] = seed;
+      }
+
+      // Trigger new generation with modified metadata
+      final generationResponse = await _client.post(
+        Uri.parse('$baseUrl/api/generate'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'image_name': _selectedPhoto,
+          'metadata': metadata,
+          'modify_seed': seed == null,
+          'count': count
+        }),
+      );
+
+      if (generationResponse.statusCode == 200 ||
+          generationResponse.statusCode == 201) {
+        // Estimate completion time (30 seconds per image)
+        final waitTime = count * 30;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content:
+                Text('Generation started! Estimated time: $waitTime seconds'),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+
+        // Reset selection
+        setState(() {
+          _selectedPhoto = null;
+        });
+
+        // Optional: Refresh after estimated completion
+        Future.delayed(Duration(seconds: waitTime), () {
+          _loadPhotos();
+        });
+      } else {
+        throw Exception(
+            'Failed to start generation: ${generationResponse.statusCode}');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    } finally {
+      setState(() {
+        _isGenerating = false;
+      });
+    }
+  }
+
+  Widget _buildGridItem(String photo) {
+    final isSelected = photo == _selectedPhoto;
+
+    return GestureDetector(
+      onTap: () => _showFullScreenImage(context, photo),
+      onLongPress: () => setState(() {
+        // Toggle selection: if already selected, clear selection; otherwise select this photo
+        _selectedPhoto = isSelected ? null : photo;
+      }),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Hero(
+            tag: photo,
+            child: CachedNetworkImage(
+              imageUrl: '$baseUrl/photos/$photo',
+              fit: BoxFit.cover,
+              placeholder: (context, url) => Container(
+                color: Colors.grey[300],
+                child: const Center(child: CircularProgressIndicator()),
+              ),
+              errorWidget: (context, url, error) => Container(
+                color: Colors.grey[300],
+                child: const Icon(Icons.error),
+              ),
+            ),
+          ),
+          if (isSelected)
+            Container(
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.primary,
+                  width: 3,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -167,21 +234,6 @@ class _PhotoGalleryScreenState extends State<PhotoGalleryScreen> {
       appBar: AppBar(
         title: const Text('Photo Gallery'),
         actions: [
-          // IconButton(
-          //   icon: _isGenerating
-          //       ? const SizedBox(
-          //           width: 20,
-          //           height: 20,
-          //           child: CircularProgressIndicator(
-          //             strokeWidth: 2,
-          //             color: Colors.white,
-          //           ),
-          //         )
-          //       : const Icon(
-          //           Icons.auto_awesome), // or any other icon you prefer
-          //   onPressed: _isGenerating ? null : _triggerGeneration,
-          //   tooltip: 'Generate new images',
-          // ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadPhotos,
@@ -189,6 +241,21 @@ class _PhotoGalleryScreenState extends State<PhotoGalleryScreen> {
         ],
       ),
       body: _buildBody(),
+      floatingActionButton: _selectedPhoto != null
+          ? FloatingActionButton(
+              onPressed: _isGenerating ? null : _showGenerationDialog,
+              child: _isGenerating
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Icon(Icons.auto_awesome),
+            )
+          : null,
     );
   }
 
@@ -229,29 +296,7 @@ class _PhotoGalleryScreenState extends State<PhotoGalleryScreen> {
           mainAxisSpacing: 8,
         ),
         itemCount: _photos.length,
-        itemBuilder: (context, index) {
-          final photo = _photos[index];
-          return GestureDetector(
-            onTap: () => _showFullScreenImage(context, photo),
-            child: Hero(
-              tag: photo,
-              child: CachedNetworkImage(
-                imageUrl: '$baseUrl/photos/$photo',
-                fit: BoxFit.cover,
-                placeholder: (context, url) => Container(
-                  color: Colors.grey[300],
-                  child: const Center(
-                    child: CircularProgressIndicator(),
-                  ),
-                ),
-                errorWidget: (context, url, error) => Container(
-                  color: Colors.grey[300],
-                  child: const Icon(Icons.error),
-                ),
-              ),
-            ),
-          );
-        },
+        itemBuilder: (context, index) => _buildGridItem(_photos[index]),
       ),
     );
   }
