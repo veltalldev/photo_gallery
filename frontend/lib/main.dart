@@ -3,10 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'dart:convert';
-import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:photo_gallery/widgets/generation_dialog.dart';
+import 'package:photo_gallery/widgets/full_screen_photo_viewer.dart';
+import 'package:photo_gallery/widgets/generation_bottom_sheet.dart';
 
 void main() {
   runApp(const MyApp());
@@ -41,7 +40,6 @@ class _PhotoGalleryScreenState extends State<PhotoGalleryScreen> {
   List<String> _photos = [];
   bool _isLoading = true;
   bool _isGenerating = false;
-  String? _selectedPhoto;
   String _error = '';
 
   // Replace with your PC's local IP address when testing on physical device
@@ -92,22 +90,14 @@ class _PhotoGalleryScreenState extends State<PhotoGalleryScreen> {
     }
   }
 
-  Future<void> _showGenerationDialog() async {
-    if (_selectedPhoto == null || _isGenerating) return;
-
-    showDialog(
-      context: context,
-      builder: (context) => GenerationDialog(
-        onSubmit: (additionalPrompt, count, seed) {
-          _triggerMoreLikeThis(additionalPrompt, count, seed);
-        },
-      ),
-    );
-  }
-
+  // Update the trigger function to accept the photo parameter
   Future<void> _triggerMoreLikeThis(
-      String additionalPrompt, int count, int? seed) async {
-    if (_selectedPhoto == null || _isGenerating) return;
+    String additionalPrompt,
+    int count,
+    int? seed,
+    String photo, // Add this parameter
+  ) async {
+    if (_isGenerating) return;
 
     setState(() {
       _isGenerating = true;
@@ -116,7 +106,7 @@ class _PhotoGalleryScreenState extends State<PhotoGalleryScreen> {
     try {
       // First, get the metadata for the selected image
       final metadataResponse = await _client.get(
-        Uri.parse('$baseUrl/api/metadata/${_selectedPhoto!}'),
+        Uri.parse('$baseUrl/api/metadata/$photo'), // Use the passed photo
       );
 
       if (metadataResponse.statusCode != 200) {
@@ -136,7 +126,7 @@ class _PhotoGalleryScreenState extends State<PhotoGalleryScreen> {
         Uri.parse('$baseUrl/api/generate'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
-          'image_name': _selectedPhoto,
+          'image_name': photo, // Use the passed photo
           'metadata': metadata,
           'use_random_seed': seed == null,
           'seed': seed,
@@ -160,11 +150,6 @@ class _PhotoGalleryScreenState extends State<PhotoGalleryScreen> {
           ),
         );
 
-        // Reset selection
-        setState(() {
-          _selectedPhoto = null;
-        });
-
         // Optional: Refresh after estimated completion
         Future.delayed(Duration(seconds: waitTime), () {
           _loadPhotos();
@@ -185,14 +170,8 @@ class _PhotoGalleryScreenState extends State<PhotoGalleryScreen> {
   }
 
   Widget _buildGridItem(String photo) {
-    final isSelected = photo == _selectedPhoto;
-
     return GestureDetector(
       onTap: () => _showFullScreenImage(context, photo),
-      onLongPress: () => setState(() {
-        // Toggle selection: if already selected, clear selection; otherwise select this photo
-        _selectedPhoto = isSelected ? null : photo;
-      }),
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -211,15 +190,14 @@ class _PhotoGalleryScreenState extends State<PhotoGalleryScreen> {
               ),
             ),
           ),
-          if (isSelected)
-            Container(
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: Theme.of(context).colorScheme.primary,
-                  width: 3,
-                ),
+          Container(
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: Theme.of(context).colorScheme.primary,
+                width: 3,
               ),
             ),
+          ),
         ],
       ),
     );
@@ -229,7 +207,11 @@ class _PhotoGalleryScreenState extends State<PhotoGalleryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Photo Gallery'),
+        title: const Text(
+          'Photo Gallery',
+          style: TextStyle(color: Colors.white),
+        ),
+        backgroundColor: Colors.purple,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -238,21 +220,29 @@ class _PhotoGalleryScreenState extends State<PhotoGalleryScreen> {
         ],
       ),
       body: _buildBody(),
-      floatingActionButton: _selectedPhoto != null
-          ? FloatingActionButton(
-              onPressed: _isGenerating ? null : _showGenerationDialog,
-              child: _isGenerating
-                  ? const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
-                    )
-                  : const Icon(Icons.auto_awesome),
-            )
-          : null,
+      // floatingActionButton: _selectedPhoto != null
+      //     ? FloatingActionButton(
+      //         onPressed: _isGenerating ? null : _showGenerationDialog,
+      //         child: _isGenerating
+      //             ? const SizedBox(
+      //                 width: 24,
+      //                 height: 24,
+      //                 child: CircularProgressIndicator(
+      //                   color: Colors.white,
+      //                   strokeWidth: 2,
+      //                 ),
+      //               )
+      //             : const Icon(Icons.auto_awesome),
+      //       )
+      //     : null,
+      floatingActionButton: FloatingActionButton(
+          onPressed: () => showGenerationOptions(
+                context,
+                onSubmit: (prompt, count, seed) {
+                  // Handle generation
+                },
+                isGenerating: false, // Set to true while generating
+              )),
     );
   }
 
@@ -299,34 +289,22 @@ class _PhotoGalleryScreenState extends State<PhotoGalleryScreen> {
   }
 
   void _showFullScreenImage(BuildContext context, String photo) {
+    final currentIndex = _photos.indexOf(photo);
+    if (currentIndex == -1) return;
+
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => Scaffold(
-          backgroundColor: Colors.black,
-          body: SafeArea(
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                InteractiveViewer(
-                  child: Hero(
-                    tag: photo,
-                    child: CachedNetworkImage(
-                      imageUrl: '$baseUrl/photos/$photo',
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                ),
-                Positioned(
-                  top: 8,
-                  left: 8,
-                  child: IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ),
-              ],
-            ),
-          ),
+        builder: (context) => FullScreenPhotoViewer(
+          photos: _photos,
+          initialIndex: currentIndex,
+          baseUrl: baseUrl,
+          isGenerating: _isGenerating,
+          onGenerateMore: (additionalPrompt, count, seed) {
+            // Close the bottom sheet
+            Navigator.pop(context);
+            // Trigger generation
+            _triggerMoreLikeThis(additionalPrompt, count, seed, photo);
+          },
         ),
       ),
     );
