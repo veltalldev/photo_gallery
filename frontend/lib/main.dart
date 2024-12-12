@@ -47,7 +47,6 @@ class _PhotoGalleryScreenState extends State<PhotoGalleryScreen> {
   // Replace with your PC's local IP address when testing on physical device
   //final String baseUrl = 'http://localhost:8000';
   final String baseUrl = 'http://192.168.4.26:8000';
-  // final String invokeAiUrl = 'http://192.168.4.26:9090';
 
   @override
   void initState() {
@@ -153,7 +152,7 @@ class _PhotoGalleryScreenState extends State<PhotoGalleryScreen> {
       if (generationResponse.statusCode == 200 ||
           generationResponse.statusCode == 201) {
         // Estimate completion time (30 seconds per image)
-        final waitTime = count * 30;
+        final waitTime = count * 15;
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
