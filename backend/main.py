@@ -131,7 +131,7 @@ async def trigger_generation(request: GenerationRequest):
             seeds = [random.randint(1, 1000000) for _ in range(request.quantity)]
         else:
             base_seed = request.seed if request.seed is not None else 1
-            seeds = [base_seed + i for i in range(request.quantity)]
+            seeds = [base_seed for _ in range(request.quantity)]
 
         # Extract model info from metadata
         model_info = generation_params.get("model", {})
@@ -260,7 +260,6 @@ async def trigger_generation(request: GenerationRequest):
                             "fp32": False,
                             "is_intermediate": False,
                             "use_cache": False,
-                            "board": {"board_id": generation_params.get("board_id", "")}
                         }
                     },
                     "edges": [
@@ -292,7 +291,7 @@ async def trigger_generation(request: GenerationRequest):
                          "destination": {"node_id": nodes["canvas_output"], "field": "metadata"}}
                     ]
                 },
-                "runs": request.quantity,
+                "runs": 1,
                 "data": [
                     [
                         {"node_path": nodes["noise"], "field_name": "seed", "items": seeds},
@@ -309,10 +308,6 @@ async def trigger_generation(request: GenerationRequest):
             "origin": "photo_gallery",
             "destination": "gallery"
         }
-
-        print("========================================")
-        print("Sending request to InvokeAI:")
-        print(invoke_request)
         
         # Send the generation request to InvokeAI
         async with httpx.AsyncClient() as client:

@@ -126,12 +126,6 @@ class _PhotoGalleryScreenState extends State<PhotoGalleryScreen> {
 
       final metadata = json.decode(metadataResponse.body);
 
-      // Add additional prompt if provided
-      if (additionalPrompt.isNotEmpty) {
-        final existingPrompt = metadata['prompt'] ?? '';
-        metadata['prompt'] = '$existingPrompt, $additionalPrompt';
-      }
-
       // Update seed if specified
       if (seed != null) {
         metadata['seed'] = seed;
@@ -144,8 +138,12 @@ class _PhotoGalleryScreenState extends State<PhotoGalleryScreen> {
         body: json.encode({
           'image_name': _selectedPhoto,
           'metadata': metadata,
-          'modify_seed': seed == null,
-          'count': count
+          'use_random_seed': seed == null,
+          'seed': seed,
+          'quantity': count,
+          ...additionalPrompt.isNotEmpty
+              ? {'additional_prompt': additionalPrompt}
+              : {}
         }),
       );
 
