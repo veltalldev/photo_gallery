@@ -6,10 +6,14 @@ import httpx
 import os
 import string
 import random
+import hashlib
+import aiofiles
+import json
+from PIL import Image
 from pathlib import Path
 from typing import List, Dict, Any, Optional
+from fastapi.staticfiles import StaticFiles
 
-# Create FastAPI app instance first
 app = FastAPI()
 
 # Enable CORS
@@ -23,14 +27,37 @@ app.add_middleware(
 
 # Constants
 INVOKEAI_BASE_URL = "http://localhost:9090"
-ESTIMATED_TIME_PER_IMAGE = 15  # seconds, adjust based on your setup
+ESTIMATED_TIME_PER_IMAGE = 15
+THUMBNAIL_SIZE = (300, 300)
+THUMBNAIL_QUALITY = 85
+CACHE_CONTROL_THUMBNAILS = "public, max-age=604800"
+CACHE_CONTROL_FULL = "public, max-age=31536000"
+PHOTO_DIR = Path("photos").resolve()
+THUMBNAIL_DIR = Path("thumbnails").resolve()
 
-# Get the absolute path of the symlink target
-photos_dir = Path("photos").resolve()
+# Create required directories
+for directory in [PHOTO_DIR, THUMBNAIL_DIR]:
+    if not directory.exists():
+        directory.mkdir(parents=True, exist_ok=True)
 
 def _generate_random_id(length: int = 8) -> str:
-    """Generate a random ID string of specified length."""
     return ''.join(random.choices(string.ascii_letters + string.digits, k=length))
+
+def get_thumbnail_path(original_path: Path) -> Path:
+    unique_id = str(original_path)
+    filename_hash = hashlib.md5(unique_id.encode()).hexdigest()
+    return THUMBNAIL_DIR / f"{original_path.stem}_{filename_hash}.webp"
+
+async def create_thumbnail(image_path: Path, thumbnail_path: Path):
+    try:
+        with Image.open(image_path) as img:
+            if img.mode in ('RGBA', 'P'):
+                img = img.convert('RGB')
+            img.thumbnail(THUMBNAIL_SIZE, Image.Resampling.LANCZOS)
+            img.save(thumbnail_path, 'WEBP', quality=THUMBNAIL_QUALITY)
+    except Exception as e:
+        print(f"Error creating thumbnail for {image_path}: {e}")
+        raise HTTPException(status_code=500, detail="Error creating thumbnail")
 
 # Models
 class GenerationRequest(BaseModel):
@@ -46,46 +73,67 @@ class GenerationResponse(BaseModel):
     batch_id: str
     message: str
 
-# Original photo listing endpoint
+
 @app.get("/api/photos", response_model=List[str])
 async def list_photos():
-    """List all photos in the photos directory, sorted by modification time (newest first)."""
     try:
-        # Get all image files with their modification times
-        photo_info = []
-        for filename in os.listdir(photos_dir):
-            if not os.path.isfile(os.path.join(photos_dir, filename)):
-                continue
-                
-            if not filename.lower().endswith(('.png', '.jpg', '.jpeg', '.gif')):
-                continue
-                
-            file_path = os.path.join(photos_dir, filename)
-            photo_info.append({
-                'filename': filename,
-                'mtime': os.path.getmtime(file_path)
-            })
-        
-        # Sort by modification time, newest first
-        photo_info.sort(key=lambda x: x['mtime'], reverse=True)
-        
-        # Return just the sorted filenames
-        return [photo['filename'] for photo in photo_info]
-        
+        photos = [f.name for f in PHOTO_DIR.glob("*") if f.is_file()]
+        return sorted(photos, key=lambda x: os.path.getmtime(PHOTO_DIR / x), reverse=True)
     except Exception as e:
-        print(f"Error listing photos: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/photos/{filename}")
-async def get_photo(filename: str):
-    """Serve individual photos."""
+async def get_photo(filename: str, thumbnail: bool = False):
     try:
-        file_path = os.path.join(photos_dir, filename)
-        if not os.path.exists(file_path):
-            raise HTTPException(status_code=404, detail="File not found")
-        return FileResponse(file_path)
+        file_path = PHOTO_DIR / filename
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="Photo not found")
+        return FileResponse(
+            file_path,
+            headers={"Cache-Control": CACHE_CONTROL_FULL}
+        )
+    except HTTPException as he:
+        raise he
     except Exception as e:
-        print(f"Error serving photo {filename}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/photos/thumbnail/{filename}")
+async def get_photo_thumbnail(filename: str):
+    try:
+        original_path = PHOTO_DIR / filename
+        if not original_path.exists():
+            raise HTTPException(status_code=404, detail="Photo not found")
+            
+        thumbnail_path = get_thumbnail_path(original_path)
+        if not thumbnail_path.exists():
+            await create_thumbnail(original_path, thumbnail_path)
+            
+        return FileResponse(
+            thumbnail_path,
+            headers={"Cache-Control": CACHE_CONTROL_THUMBNAILS}
+        )
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/photos/{filename}")
+async def delete_photo(filename: str):
+    try:
+        file_path = PHOTO_DIR / filename
+        thumbnail_path = get_thumbnail_path(file_path)
+        
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="Photo not found")
+            
+        file_path.unlink()
+        if thumbnail_path.exists():
+            thumbnail_path.unlink()
+            
+        return {"status": "success"}
+    except HTTPException as he:
+        raise he
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/metadata/{image_name}")
