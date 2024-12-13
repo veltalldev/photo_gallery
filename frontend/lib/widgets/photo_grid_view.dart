@@ -350,20 +350,22 @@ class _PhotoGridViewState extends State<PhotoGridView>
         ],
       ),
       body: _error == ""
-          ? GridView.builder(
-              cacheExtent: MediaQuery.of(context).size.height * 2,
-              padding: const EdgeInsets.all(8),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                crossAxisSpacing: 8,
-                mainAxisSpacing: 8,
+          ? RefreshIndicator(
+              child: GridView.builder(
+                cacheExtent: MediaQuery.of(context).size.height * 2,
+                padding: const EdgeInsets.all(8),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 8,
+                ),
+                itemCount: _photos.length,
+                itemBuilder: (context, index) => _buildGridItem(_photos[index]),
               ),
-              itemCount: _photos.length,
-              itemBuilder: (context, index) => _buildGridItem(_photos[index]),
-            )
-          : Center(
-              child: Text(_error),
-            ),
+              onRefresh: () async {
+                await _loadPhotos();
+              })
+          : Center(child: Text(_error)),
     );
   }
 }
