@@ -1,10 +1,6 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:photo_gallery/widgets/full_screen_photo_viewer.dart';
-import 'package:photo_gallery/widgets/generation_bottom_sheet.dart';
 import 'package:photo_gallery/widgets/photo_grid_view.dart';
 
 void main() {
@@ -313,6 +309,6 @@ class _PhotoGalleryScreenState extends State<PhotoGalleryScreen> {
   @override
   Widget build(BuildContext context) {
     // TODO: implement build
-    return PhotoGridView();
+    return const PhotoGridView();
   }
 }

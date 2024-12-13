@@ -23,7 +23,7 @@ class _PhotoGridViewState extends State<PhotoGridView>
     with AutomaticKeepAliveClientMixin {
   late final http.Client _client;
   List<String> _photos = [];
-  bool _isLoading = true;
+  // bool _isLoading = true;
   bool _isGenerating = false;
   String _error = '';
 
@@ -161,7 +161,7 @@ class _PhotoGridViewState extends State<PhotoGridView>
   Future<void> _loadPhotos() async {
     try {
       setState(() {
-        _isLoading = true;
+        // _isLoading = true;
         _error = '';
       });
 
@@ -171,18 +171,18 @@ class _PhotoGridViewState extends State<PhotoGridView>
         final List<dynamic> photoList = json.decode(response.body);
         setState(() {
           _photos = photoList.cast<String>();
-          _isLoading = false;
+          // _isLoading = false;
         });
       } else {
         setState(() {
           _error = 'Failed to load photos: ${response.statusCode}';
-          _isLoading = false;
+          // _isLoading = false;
         });
       }
     } catch (e) {
       setState(() {
         _error = 'Error loading photos: $e';
-        _isLoading = false;
+        // _isLoading = false;
       });
     }
   }
