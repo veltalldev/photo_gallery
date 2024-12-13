@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:photo_gallery/widgets/generation_bottom_sheet.dart';
 
 class FullScreenPhotoViewer extends StatefulWidget {
+  // final String currentPhoto;
   final List<String> photos;
   final int initialIndex;
   final String baseUrl;
@@ -12,6 +13,7 @@ class FullScreenPhotoViewer extends StatefulWidget {
 
   const FullScreenPhotoViewer({
     super.key,
+    // required this.currentPhoto,
     required this.photos,
     required this.initialIndex,
     required this.baseUrl,
@@ -120,6 +122,13 @@ class _FullScreenPhotoViewerState extends State<FullScreenPhotoViewer> {
                         onPressed:
                             widget.isGenerating ? null : _showGenerationOptions,
                       ),
+                    // IconButton(
+                    //   icon: const Icon(Icons.delete),
+                    //   onPressed: () {
+                    //     Navigator.of(context).pop();
+                    //     _showDeleteDialog(photo);
+                    //   },
+                    // ),
                   ],
                 ),
               ),
