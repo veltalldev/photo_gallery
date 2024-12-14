@@ -229,7 +229,7 @@ class _PhotoGridViewState extends State<PhotoGridView>
     final isSelected = _selectedPhotos.contains(photo);
 
     return PhotoErrorBoundary(
-      onRetry: () => setState(() {}), // Force rebuild to retry loading
+      onRetry: () => _loadPhotos, // Force rebuild to retry loading
       child: GestureDetector(
         onTap: () {
           if (_isSelectionMode) {

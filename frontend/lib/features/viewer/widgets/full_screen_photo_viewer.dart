@@ -1,19 +1,17 @@
-// lib/widgets/full_screen_viewer.dart
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:photo_gallery/widgets/generation_bottom_sheet.dart';
+import 'package:photo_gallery/widgets/errors/photo_error_boundary.dart';
+import 'package:photo_gallery/features/generation/widgets/generation_bottom_sheet.dart';
 
 class FullScreenPhotoViewer extends StatefulWidget {
-  // final String currentPhoto;
   final List<String> photos;
   final int initialIndex;
   final String baseUrl;
   final bool isGenerating;
-  final Function(String additionalPrompt, int count, int? seed)? onGenerateMore;
+  final Function(String, int, int?)? onGenerateMore;
 
   const FullScreenPhotoViewer({
     super.key,
-    // required this.currentPhoto,
     required this.photos,
     required this.initialIndex,
     required this.baseUrl,
@@ -28,6 +26,8 @@ class FullScreenPhotoViewer extends StatefulWidget {
 class _FullScreenPhotoViewerState extends State<FullScreenPhotoViewer> {
   late PageController _pageController;
   late int _currentIndex;
+  bool _isLoading = false;
+  String? _error;
 
   @override
   void initState() {
@@ -42,17 +42,56 @@ class _FullScreenPhotoViewerState extends State<FullScreenPhotoViewer> {
     super.dispose();
   }
 
-  void _onPageChanged(int index) {
+  Future<void> _retryLoadImage() async {
     setState(() {
-      _currentIndex = index;
+      _error = null;
+      _isLoading = true;
+    });
+
+    // Add a slight delay to ensure the UI updates
+    await Future.delayed(const Duration(milliseconds: 100));
+
+    setState(() {
+      _isLoading = false;
     });
   }
 
-  void _showGenerationOptions() {
-    showGenerationOptions(
-      context,
-      onSubmit: widget.onGenerateMore!,
-      isGenerating: widget.isGenerating,
+  Widget _buildImageView(String photo) {
+    return PhotoErrorBoundary(
+      onRetry: _retryLoadImage,
+      child: InteractiveViewer(
+        child: Hero(
+          tag: photo,
+          child: CachedNetworkImage(
+            imageUrl: '${widget.baseUrl}/photos/$photo',
+            fit: BoxFit.contain,
+            placeholder: (context, url) => const Center(
+              child: CircularProgressIndicator(color: Colors.white),
+            ),
+            errorWidget: (context, url, error) => Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error, color: Colors.white, size: 48),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Failed to load image',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: Colors.white,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  FilledButton.icon(
+                    onPressed: _retryLoadImage,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -64,36 +103,15 @@ class _FullScreenPhotoViewerState extends State<FullScreenPhotoViewer> {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Page View for swipeable photos
+            // Main content
             PageView.builder(
               controller: _pageController,
-              onPageChanged: _onPageChanged,
+              onPageChanged: (index) => setState(() => _currentIndex = index),
               itemCount: widget.photos.length,
-              itemBuilder: (context, index) {
-                final photo = widget.photos[index];
-                return InteractiveViewer(
-                  child: Hero(
-                    tag: photo,
-                    child: CachedNetworkImage(
-                      imageUrl: '${widget.baseUrl}/photos/$photo',
-                      fit: BoxFit.contain,
-                      placeholder: (context, url) => const Center(
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                        ),
-                      ),
-                      errorWidget: (context, url, error) => const Center(
-                        child: Icon(
-                          Icons.error,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              },
+              itemBuilder: (context, index) =>
+                  _buildImageView(widget.photos[index]),
             ),
-            // Navigation controls overlay
+            // Controls overlay
             Positioned(
               top: 0,
               left: 0,
@@ -110,30 +128,25 @@ class _FullScreenPhotoViewerState extends State<FullScreenPhotoViewer> {
                     ),
                     Text(
                       '${_currentIndex + 1} / ${widget.photos.length}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                      ),
+                      style: const TextStyle(color: Colors.white, fontSize: 16),
                     ),
                     if (widget.onGenerateMore != null)
                       IconButton(
                         icon:
                             const Icon(Icons.auto_awesome, color: Colors.white),
-                        onPressed:
-                            widget.isGenerating ? null : _showGenerationOptions,
+                        onPressed: widget.isGenerating
+                            ? null
+                            : () => showGenerationOptions(
+                                  context,
+                                  onSubmit: widget.onGenerateMore!,
+                                  isGenerating: widget.isGenerating,
+                                ),
                       ),
-                    // IconButton(
-                    //   icon: const Icon(Icons.delete),
-                    //   onPressed: () {
-                    //     Navigator.of(context).pop();
-                    //     _showDeleteDialog(photo);
-                    //   },
-                    // ),
                   ],
                 ),
               ),
             ),
-            // Left/Right navigation buttons
+            // Navigation buttons
             if (widget.photos.length > 1) ...[
               // Previous button
               Positioned(
@@ -148,12 +161,10 @@ class _FullScreenPhotoViewerState extends State<FullScreenPhotoViewer> {
                             color: Colors.white,
                             size: 40,
                           ),
-                          onPressed: () {
-                            _pageController.previousPage(
-                              duration: const Duration(milliseconds: 300),
-                              curve: Curves.easeInOut,
-                            );
-                          },
+                          onPressed: () => _pageController.previousPage(
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOut,
+                          ),
                         )
                       : const SizedBox.shrink(),
                 ),
@@ -171,12 +182,10 @@ class _FullScreenPhotoViewerState extends State<FullScreenPhotoViewer> {
                             color: Colors.white,
                             size: 40,
                           ),
-                          onPressed: () {
-                            _pageController.nextPage(
-                              duration: const Duration(milliseconds: 300),
-                              curve: Curves.easeInOut,
-                            );
-                          },
+                          onPressed: () => _pageController.nextPage(
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOut,
+                          ),
                         )
                       : const SizedBox.shrink(),
                 ),
