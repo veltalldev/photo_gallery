@@ -5,7 +5,9 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:photo_gallery/services/photo_cache_manager.dart';
-import 'package:photo_gallery/widgets/full_screen_photo_viewer.dart';
+import 'package:photo_gallery/features/viewer/widgets/full_screen_photo_viewer.dart';
+import 'package:photo_gallery/widgets/errors/photo_error_boundary.dart';
+import 'package:photo_gallery/core/errors/app_error.dart';
 
 class PhotoGridView extends StatefulWidget {
   final http.Client? client;
@@ -25,7 +27,6 @@ class _PhotoGridViewState extends State<PhotoGridView>
   List<String> _photos = [];
   // bool _isLoading = true;
   bool _isGenerating = false;
-  String _error = '';
 
   // Replace with your PC's local IP address when testing on physical device
   //final String baseUrl = 'http://localhost:8000';
@@ -160,30 +161,23 @@ class _PhotoGridViewState extends State<PhotoGridView>
 
   Future<void> _loadPhotos() async {
     try {
-      setState(() {
-        // _isLoading = true;
-        _error = '';
-      });
-
       final response = await _client.get(Uri.parse('$baseUrl/api/photos'));
 
       if (response.statusCode == 200) {
         final List<dynamic> photoList = json.decode(response.body);
         setState(() {
           _photos = photoList.cast<String>();
-          // _isLoading = false;
         });
       } else {
-        setState(() {
-          _error = 'Failed to load photos: ${response.statusCode}';
-          // _isLoading = false;
-        });
+        throw PhotoError(
+          'Failed to load photos: ${response.statusCode}',
+        );
       }
     } catch (e) {
-      setState(() {
-        _error = 'Error loading photos: $e';
-        // _isLoading = false;
-      });
+      throw PhotoError(
+        'Error loading photos',
+        e,
+      );
     }
   }
 
@@ -234,89 +228,95 @@ class _PhotoGridViewState extends State<PhotoGridView>
   Widget _buildGridItem(String photo) {
     final isSelected = _selectedPhotos.contains(photo);
 
-    return GestureDetector(
-      onTap: () {
-        if (_isSelectionMode) {
-          setState(() {
-            if (isSelected) {
-              _selectedPhotos.remove(photo);
-              if (_selectedPhotos.isEmpty) {
-                _isSelectionMode = false;
+    return PhotoErrorBoundary(
+      onRetry: () => setState(() {}), // Force rebuild to retry loading
+      child: GestureDetector(
+        onTap: () {
+          if (_isSelectionMode) {
+            setState(() {
+              if (isSelected) {
+                _selectedPhotos.remove(photo);
+                if (_selectedPhotos.isEmpty) {
+                  _isSelectionMode = false;
+                }
+              } else {
+                _selectedPhotos.add(photo);
               }
-            } else {
+            });
+          } else {
+            _showFullScreenImage(context, photo);
+          }
+        },
+        onLongPress: () {
+          if (!_isSelectionMode) {
+            setState(() {
+              _isSelectionMode = true;
               _selectedPhotos.add(photo);
-            }
-          });
-        } else {
-          _showFullScreenImage(context, photo);
-        }
-      },
-      onLongPress: () {
-        if (!_isSelectionMode) {
-          setState(() {
-            _isSelectionMode = true;
-            _selectedPhotos.add(photo);
-          });
-        }
-      },
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Hero(
-            tag: photo,
-            child: CachedNetworkImage(
-              imageUrl: _getThumbnailUrl(photo),
-              cacheManager: PhotoCacheManager(),
-              imageBuilder: (context, imageProvider) {
-                final provider = _getImageProvider(photo);
-                return Container(
-                  decoration: BoxDecoration(
-                    image: DecorationImage(
-                      image: provider,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                );
-              },
-              placeholder: (context, url) {
-                if (_imageCache.containsKey(photo)) {
+            });
+          }
+        },
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Hero(
+              tag: photo,
+              child: CachedNetworkImage(
+                imageUrl: _getThumbnailUrl(photo),
+                cacheManager: PhotoCacheManager(),
+                imageBuilder: (context, imageProvider) {
+                  final provider = _getImageProvider(photo);
                   return Container(
                     decoration: BoxDecoration(
                       image: DecorationImage(
-                        image: _imageCache[photo]!,
+                        image: provider,
                         fit: BoxFit.cover,
                       ),
                     ),
                   );
-                }
+                },
+                placeholder: (context, url) {
+                  if (_imageCache.containsKey(photo)) {
+                    return Container(
+                      decoration: BoxDecoration(
+                        image: DecorationImage(
+                          image: _imageCache[photo]!,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    );
+                  }
 
-                return Container(
-                  color: Colors.grey[300],
-                  child: const Center(
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                  return Container(
+                    color: Colors.grey[300],
+                    child: const Center(
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  );
+                },
+                errorWidget: (context, url, error) {
+                  throw PhotoError('Failed to load image', error);
+                },
+              ),
+            ),
+            if (isSelected)
+              Container(
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.primary,
+                    width: 3,
                   ),
-                );
-              },
-            ),
-          ),
-          if (isSelected)
-            Container(
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: Theme.of(context).colorScheme.primary,
-                  width: 3,
+                  color: Colors.black26,
                 ),
-                color: Colors.black26,
-              ),
-              child: const Center(
-                child: Icon(
-                  Icons.check_circle,
-                  color: Colors.white,
-                  size: 30,
+                child: const Center(
+                  child: Icon(
+                    Icons.check_circle,
+                    color: Colors.white,
+                    size: 30,
+                  ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -325,47 +325,57 @@ class _PhotoGridViewState extends State<PhotoGridView>
   Widget build(BuildContext context) {
     super.build(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.deepPurpleAccent,
-        title: _isSelectionMode
-            ? Text('${_selectedPhotos.length} selected')
-            : const Text('Photo Gallery'),
-        actions: [
-          if (_isSelectionMode) ...[
-            IconButton(
-              icon: const Icon(Icons.delete),
-              onPressed: _deleteSelectedPhotos,
-            ),
-            IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: () {
-                setState(() {
-                  _selectedPhotos.clear();
-                  _isSelectionMode = false;
-                });
-              },
-            ),
-          ],
-        ],
-      ),
-      body: _error == ""
-          ? RefreshIndicator(
-              child: GridView.builder(
-                cacheExtent: MediaQuery.of(context).size.height * 2,
-                padding: const EdgeInsets.all(8),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 8,
-                ),
-                itemCount: _photos.length,
-                itemBuilder: (context, index) => _buildGridItem(_photos[index]),
+    return PhotoErrorBoundary(
+      onRetry: _loadPhotos,
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: Colors.deepPurpleAccent,
+          title: _isSelectionMode
+              ? Text('${_selectedPhotos.length} selected')
+              : const Text('Photo Gallery'),
+          actions: [
+            if (_isSelectionMode) ...[
+              IconButton(
+                icon: const Icon(Icons.delete),
+                onPressed: _deleteSelectedPhotos,
               ),
-              onRefresh: () async {
-                await _loadPhotos();
-              })
-          : Center(child: Text(_error)),
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () {
+                  setState(() {
+                    _selectedPhotos.clear();
+                    _isSelectionMode = false;
+                  });
+                },
+              ),
+            ],
+          ],
+        ),
+        body: RefreshIndicator(
+          onRefresh: () async {
+            try {
+              await _loadPhotos();
+            } catch (e) {
+              // Let the error boundary handle the error
+              throw PhotoError(
+                'Failed to refresh photos',
+                e,
+              );
+            }
+          },
+          child: GridView.builder(
+            cacheExtent: MediaQuery.of(context).size.height * 2,
+            padding: const EdgeInsets.all(8),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+            ),
+            itemCount: _photos.length,
+            itemBuilder: (context, index) => _buildGridItem(_photos[index]),
+          ),
+        ),
+      ),
     );
   }
 }
