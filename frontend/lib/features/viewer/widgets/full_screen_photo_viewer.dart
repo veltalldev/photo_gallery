@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:photo_gallery/widgets/errors/photo_error_boundary.dart';
 import 'package:photo_gallery/features/generation/widgets/generation_bottom_sheet.dart';
+import 'package:photo_gallery/models/domain/photo.dart';
 
 class FullScreenPhotoViewer extends StatefulWidget {
-  final List<String> photos;
+  final List<Photo> photos;
   final int initialIndex;
-  final String baseUrl;
   final bool isGenerating;
   final Function(String, int, int?)? onGenerateMore;
 
@@ -14,7 +14,6 @@ class FullScreenPhotoViewer extends StatefulWidget {
     super.key,
     required this.photos,
     required this.initialIndex,
-    required this.baseUrl,
     this.isGenerating = false,
     this.onGenerateMore,
   });
@@ -44,19 +43,25 @@ class _FullScreenPhotoViewerState extends State<FullScreenPhotoViewer> {
     setState(() {});
   }
 
-  Widget _buildImageView(String photo) {
+  Widget _buildImageView(Photo photo) {
+    if (photo.fullImageUrl == null) {
+      return const Center(
+        child: Text('Image URL not available',
+            style: TextStyle(color: Colors.white)),
+      );
+    }
+
     return PhotoErrorBoundary(
       onRetry: _retryLoadImage,
       child: InteractiveViewer(
         child: Hero(
-          tag: photo,
+          tag: photo.id, // Using photo.id for Hero tag
           child: CachedNetworkImage(
-            imageUrl: '${widget.baseUrl}/photos/$photo',
+            imageUrl: photo.fullImageUrl!,
             fit: BoxFit.contain,
             placeholder: (context, url) => const Center(
               child: CircularProgressIndicator(color: Colors.white),
             ),
-            // Let PhotoErrorBoundary handle errors instead
             errorWidget: (_, __, error) => const SizedBox.shrink(),
           ),
         ),
@@ -107,7 +112,11 @@ class _FullScreenPhotoViewerState extends State<FullScreenPhotoViewer> {
                             ? null
                             : () => showGenerationOptions(
                                   context,
-                                  onSubmit: widget.onGenerateMore!,
+                                  onSubmit: (prompt, count, seed) {
+                                    final currentPhoto =
+                                        widget.photos[_currentIndex];
+                                    widget.onGenerateMore!(prompt, count, seed);
+                                  },
                                   isGenerating: widget.isGenerating,
                                 ),
                       ),

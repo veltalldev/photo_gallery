@@ -1,20 +1,21 @@
 import 'dart:collection';
-import 'dart:convert';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:photo_gallery/services/photo_cache_manager.dart';
-import 'package:photo_gallery/features/viewer/widgets/full_screen_photo_viewer.dart';
-import 'package:photo_gallery/widgets/errors/photo_error_boundary.dart';
+
 import 'package:photo_gallery/core/errors/app_error.dart';
+import 'package:photo_gallery/features/viewer/widgets/full_screen_photo_viewer.dart';
+import 'package:photo_gallery/models/domain/photo.dart';
+import 'package:photo_gallery/services/interfaces/i_photo_service.dart';
+import 'package:photo_gallery/services/photo_cache_manager.dart';
+import 'package:photo_gallery/widgets/errors/photo_error_boundary.dart';
 
 class PhotoGridView extends StatefulWidget {
-  final http.Client? client;
+  final IPhotoService photoService;
 
   const PhotoGridView({
     super.key,
-    this.client,
+    required this.photoService,
   });
 
   @override
@@ -23,27 +24,17 @@ class PhotoGridView extends StatefulWidget {
 
 class _PhotoGridViewState extends State<PhotoGridView>
     with AutomaticKeepAliveClientMixin {
-  late final http.Client _client;
-  List<String> _photos = [];
-  // bool _isLoading = true;
+  List<Photo> _photos = [];
   bool _isGenerating = false;
-
-  // Replace with your PC's local IP address when testing on physical device
-  //final String baseUrl = 'http://localhost:8000';
-  final String baseUrl = 'http://192.168.4.26:8000';
 
   @override
   void initState() {
     super.initState();
-    _client = widget.client ?? http.Client();
     _loadPhotos();
   }
 
   @override
   void dispose() {
-    if (widget.client == null) {
-      _client.close();
-    }
     _imageCache.clear();
     super.dispose();
   }
@@ -52,17 +43,15 @@ class _PhotoGridViewState extends State<PhotoGridView>
   bool get wantKeepAlive => true;
 
   final int maxCachedImages = 100; // Cache limit (~36MB for WebP thumbnails)
-  final LinkedHashMap<String, ImageProvider> _imageCache = LinkedHashMap();
-  final Set<String> _selectedPhotos = {};
+  final LinkedHashMap<Photo, ImageProvider> _imageCache = LinkedHashMap();
+  final Set<Photo> _selectedPhotos = {};
   bool _isSelectionMode = false;
 
-  String _getThumbnailUrl(String photo) {
-    // final baseName = photo.replaceAll('.png', '');
-    // return '$baseUrl/photos/thumbnail/$baseName.webp';
-    return '$baseUrl/photos/thumbnail/$photo';
+  String _getThumbnailUrl(Photo photo) {
+    return widget.photoService.getThumbnailUrl(photo.filename);
   }
 
-  ImageProvider _getImageProvider(String photo) {
+  ImageProvider _getImageProvider(Photo photo) {
     if (_imageCache.containsKey(photo)) {
       final provider = _imageCache.remove(photo)!;
       _imageCache[photo] = provider;
@@ -85,7 +74,7 @@ class _PhotoGridViewState extends State<PhotoGridView>
     String additionalPrompt,
     int count,
     int? seed,
-    String photo, // Add this parameter
+    Photo photo,
   ) async {
     if (_isGenerating) return;
 
@@ -94,60 +83,27 @@ class _PhotoGridViewState extends State<PhotoGridView>
     });
 
     try {
-      // First, get the metadata for the selected image
-      final metadataResponse = await _client.get(
-        Uri.parse('$baseUrl/api/metadata/$photo'), // Use the passed photo
+      await widget.photoService.generateMoreLikeThis(
+        sourcePhoto: photo.id,
+        additionalPrompt: additionalPrompt,
+        count: count,
+        seed: seed,
       );
 
-      if (metadataResponse.statusCode != 200) {
-        throw Exception(
-            'Failed to get image metadata: ${metadataResponse.statusCode}');
-      }
-
-      final metadata = json.decode(metadataResponse.body);
-
-      // Update seed if specified
-      if (seed != null) {
-        metadata['seed'] = seed;
-      }
-
-      // Trigger new generation with modified metadata
-      final generationResponse = await _client.post(
-        Uri.parse('$baseUrl/api/generate'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'image_name': photo, // Use the passed photo
-          'metadata': metadata,
-          'use_random_seed': seed == null,
-          'seed': seed,
-          'quantity': count,
-          ...additionalPrompt.isNotEmpty
-              ? {'additional_prompt': additionalPrompt}
-              : {}
-        }),
+      // Estimate completion time (30 seconds per image)
+      final waitTime = count * 15;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content:
+              Text('Generation started! Estimated time: $waitTime seconds'),
+          duration: const Duration(seconds: 5),
+        ),
       );
 
-      if (generationResponse.statusCode == 200 ||
-          generationResponse.statusCode == 201) {
-        // Estimate completion time (30 seconds per image)
-        final waitTime = count * 15;
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content:
-                Text('Generation started! Estimated time: $waitTime seconds'),
-            duration: const Duration(seconds: 5),
-          ),
-        );
-
-        // Optional: Refresh after estimated completion
-        Future.delayed(Duration(seconds: waitTime), () {
-          _loadPhotos();
-        });
-      } else {
-        throw Exception(
-            'Failed to start generation: ${generationResponse.statusCode}');
-      }
+      // Optional: Refresh after estimated completion
+      Future.delayed(Duration(seconds: waitTime), () {
+        _loadPhotos();
+      });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e')),
@@ -161,39 +117,25 @@ class _PhotoGridViewState extends State<PhotoGridView>
 
   Future<void> _loadPhotos() async {
     try {
-      final response = await _client.get(Uri.parse('$baseUrl/api/photos'));
-
-      if (response.statusCode == 200) {
-        final List<dynamic> photoList = json.decode(response.body);
-        setState(() {
-          _photos = photoList.cast<String>();
-        });
-      } else {
-        throw PhotoError(
-          'Failed to load photos: ${response.statusCode}',
-        );
-      }
+      final photos = await widget.photoService.getPhotos();
+      setState(() {
+        _photos = photos;
+      });
     } catch (e) {
-      throw PhotoError(
-        'Error loading photos',
-        e,
-      );
+      throw PhotoError('Error loading photos', e);
     }
   }
 
   Future<void> _deleteSelectedPhotos() async {
-    for (String photo in _selectedPhotos) {
-      final response = await _client.delete(
-        Uri.parse('$baseUrl/api/photos/$photo'),
-      );
-
-      if (response.statusCode == 200) {
+    for (Photo photo in _selectedPhotos) {
+      try {
+        await widget.photoService.deletePhoto(photo.id);
         setState(() {
           _photos.remove(photo);
         });
-      } else {
+      } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to delete $photo')),
+          SnackBar(content: Text('Failed to delete ${photo.filename}')),
         );
       }
     }
@@ -203,7 +145,7 @@ class _PhotoGridViewState extends State<PhotoGridView>
     });
   }
 
-  void _showFullScreenImage(BuildContext context, String photo) {
+  void _showFullScreenImage(BuildContext context, Photo photo) {
     final currentIndex = _photos.indexOf(photo);
     if (currentIndex == -1) return;
 
@@ -212,7 +154,6 @@ class _PhotoGridViewState extends State<PhotoGridView>
         builder: (context) => FullScreenPhotoViewer(
           photos: _photos,
           initialIndex: currentIndex,
-          baseUrl: baseUrl,
           isGenerating: _isGenerating,
           onGenerateMore: (additionalPrompt, count, seed) {
             // Close the bottom sheet
@@ -225,11 +166,11 @@ class _PhotoGridViewState extends State<PhotoGridView>
     );
   }
 
-  Widget _buildGridItem(String photo) {
+  Widget _buildGridItem(Photo photo) {
     final isSelected = _selectedPhotos.contains(photo);
 
     return PhotoErrorBoundary(
-      onRetry: () => _loadPhotos, // Force rebuild to retry loading
+      onRetry: () => _loadPhotos,
       child: GestureDetector(
         onTap: () {
           if (_isSelectionMode) {
@@ -259,7 +200,7 @@ class _PhotoGridViewState extends State<PhotoGridView>
           fit: StackFit.expand,
           children: [
             Hero(
-              tag: photo,
+              tag: photo.id,
               child: CachedNetworkImage(
                 imageUrl: _getThumbnailUrl(photo),
                 cacheManager: PhotoCacheManager(),
@@ -356,7 +297,6 @@ class _PhotoGridViewState extends State<PhotoGridView>
             try {
               await _loadPhotos();
             } catch (e) {
-              // Let the error boundary handle the error
               throw PhotoError(
                 'Failed to refresh photos',
                 e,
