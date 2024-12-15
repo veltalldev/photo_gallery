@@ -26,8 +26,6 @@ class FullScreenPhotoViewer extends StatefulWidget {
 class _FullScreenPhotoViewerState extends State<FullScreenPhotoViewer> {
   late PageController _pageController;
   late int _currentIndex;
-  bool _isLoading = false;
-  String? _error;
 
   @override
   void initState() {
@@ -43,17 +41,7 @@ class _FullScreenPhotoViewerState extends State<FullScreenPhotoViewer> {
   }
 
   Future<void> _retryLoadImage() async {
-    setState(() {
-      _error = null;
-      _isLoading = true;
-    });
-
-    // Add a slight delay to ensure the UI updates
-    await Future.delayed(const Duration(milliseconds: 100));
-
-    setState(() {
-      _isLoading = false;
-    });
+    setState(() {});
   }
 
   Widget _buildImageView(String photo) {
@@ -68,27 +56,8 @@ class _FullScreenPhotoViewerState extends State<FullScreenPhotoViewer> {
             placeholder: (context, url) => const Center(
               child: CircularProgressIndicator(color: Colors.white),
             ),
-            errorWidget: (context, url, error) => Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error, color: Colors.white, size: 48),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Failed to load image',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: Colors.white,
-                        ),
-                  ),
-                  const SizedBox(height: 8),
-                  FilledButton.icon(
-                    onPressed: _retryLoadImage,
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Retry'),
-                  ),
-                ],
-              ),
-            ),
+            // Let PhotoErrorBoundary handle errors instead
+            errorWidget: (_, __, error) => const SizedBox.shrink(),
           ),
         ),
       ),
