@@ -51,4 +51,36 @@ class PhotoService implements IPhotoService {
     await cacheService.remove('photos');
     await getPhotos();
   }
+
+  @override
+  String getPhotoUrl(String filename) {
+    return '${repository.baseUrl}/photos/$filename';
+  }
+
+  @override
+  String getThumbnailUrl(String filename) {
+    return '${repository.baseUrl}/photos/thumbnail/$filename';
+  }
+
+  @override
+  Future<void> generateMoreLikeThis({
+    required String sourcePhoto,
+    required String additionalPrompt,
+    required int count,
+    int? seed,
+  }) async {
+    try {
+      await repository.generatePhotos(
+        sourcePhoto: sourcePhoto,
+        additionalPrompt: additionalPrompt,
+        count: count,
+        seed: seed,
+      );
+
+      // Invalidate cache since new photos were generated
+      await cacheService.remove('photos');
+    } catch (e) {
+      throw Exception('Failed to generate photos: $e');
+    }
+  }
 }
