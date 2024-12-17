@@ -14,6 +14,7 @@ import 'package:photo_gallery/models/domain/photo.dart' as _i6;
 import 'package:photo_gallery/repositories/interfaces/i_photo_repository.dart'
     as _i3;
 import 'package:photo_gallery/services/interfaces/i_cache_service.dart' as _i7;
+import 'package:photo_gallery/services/interfaces/i_photo_service.dart' as _i10;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -519,4 +520,116 @@ class MockHttpClient extends _i1.Mock implements _i2.Client {
         ),
         returnValueForMissingStub: null,
       );
+}
+
+/// A class which mocks [IPhotoService].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockIPhotoService extends _i1.Mock implements _i10.IPhotoService {
+  @override
+  _i5.Future<List<_i6.Photo>> getPhotos() => (super.noSuchMethod(
+        Invocation.method(
+          #getPhotos,
+          [],
+        ),
+        returnValue: _i5.Future<List<_i6.Photo>>.value(<_i6.Photo>[]),
+        returnValueForMissingStub:
+            _i5.Future<List<_i6.Photo>>.value(<_i6.Photo>[]),
+      ) as _i5.Future<List<_i6.Photo>>);
+
+  @override
+  _i5.Future<_i6.Photo?> getPhoto(String? id) => (super.noSuchMethod(
+        Invocation.method(
+          #getPhoto,
+          [id],
+        ),
+        returnValue: _i5.Future<_i6.Photo?>.value(),
+        returnValueForMissingStub: _i5.Future<_i6.Photo?>.value(),
+      ) as _i5.Future<_i6.Photo?>);
+
+  @override
+  _i5.Future<void> deletePhoto(String? id) => (super.noSuchMethod(
+        Invocation.method(
+          #deletePhoto,
+          [id],
+        ),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
+
+  @override
+  _i5.Future<void> refreshPhotos() => (super.noSuchMethod(
+        Invocation.method(
+          #refreshPhotos,
+          [],
+        ),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
+
+  @override
+  String getPhotoUrl(String? filename) => (super.noSuchMethod(
+        Invocation.method(
+          #getPhotoUrl,
+          [filename],
+        ),
+        returnValue: _i4.dummyValue<String>(
+          this,
+          Invocation.method(
+            #getPhotoUrl,
+            [filename],
+          ),
+        ),
+        returnValueForMissingStub: _i4.dummyValue<String>(
+          this,
+          Invocation.method(
+            #getPhotoUrl,
+            [filename],
+          ),
+        ),
+      ) as String);
+
+  @override
+  String getThumbnailUrl(String? filename) => (super.noSuchMethod(
+        Invocation.method(
+          #getThumbnailUrl,
+          [filename],
+        ),
+        returnValue: _i4.dummyValue<String>(
+          this,
+          Invocation.method(
+            #getThumbnailUrl,
+            [filename],
+          ),
+        ),
+        returnValueForMissingStub: _i4.dummyValue<String>(
+          this,
+          Invocation.method(
+            #getThumbnailUrl,
+            [filename],
+          ),
+        ),
+      ) as String);
+
+  @override
+  _i5.Future<void> generateMoreLikeThis({
+    required String? sourcePhoto,
+    required String? additionalPrompt,
+    required int? count,
+    int? seed,
+  }) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #generateMoreLikeThis,
+          [],
+          {
+            #sourcePhoto: sourcePhoto,
+            #additionalPrompt: additionalPrompt,
+            #count: count,
+            #seed: seed,
+          },
+        ),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
 }

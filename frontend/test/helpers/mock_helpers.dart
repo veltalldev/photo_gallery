@@ -14,6 +14,7 @@ import 'package:photo_gallery/models/domain/photo.dart';
   MockSpec<IPhotoRepository>(),
   MockSpec<ICacheService>(),
   MockSpec<http.Client>(as: #MockHttpClient),
+  MockSpec<IPhotoService>(),
 ])
 void main() {}
 
