@@ -13,7 +13,7 @@ import 'package:photo_gallery/models/domain/photo.dart';
 @GenerateNiceMocks([
   MockSpec<IPhotoRepository>(),
   MockSpec<ICacheService>(),
-  MockSpec<http.Client>(),
+  MockSpec<http.Client>(as: #MockHttpClient),
 ])
 void main() {}
 

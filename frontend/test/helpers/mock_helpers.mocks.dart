@@ -203,7 +203,7 @@ class MockICacheService extends _i1.Mock implements _i7.ICacheService {
 /// A class which mocks [Client].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockClient extends _i1.Mock implements _i2.Client {
+class MockHttpClient extends _i1.Mock implements _i2.Client {
   @override
   _i5.Future<_i2.Response> head(
     Uri? url, {
