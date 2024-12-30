@@ -1,7 +1,7 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:photo_gallery/core/di/service_locator.dart';
-import 'package:photo_gallery/screens/gallery_screen.dart';
+import 'package:photo_gallery/screens/landing_page_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,10 +17,13 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Photo Gallery',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.purple,
+          brightness: Brightness.light,
+        ),
         useMaterial3: true,
       ),
-      home: const GalleryScreen(),
+      home: const LandingPageScreen(),
     );
   }
 }

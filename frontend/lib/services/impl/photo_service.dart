@@ -1,4 +1,5 @@
-// lib/services/impl/photo_service.dart
+import 'dart:convert';
+
 import '../interfaces/i_photo_service.dart';
 import '../../repositories/interfaces/i_photo_repository.dart';
 import '../../services/interfaces/i_cache_service.dart';
@@ -18,15 +19,35 @@ class PhotoService implements IPhotoService {
     try {
       // Check cache first
       final cached = await cacheService.get('photos');
+      // if (cached != null) {
+      //   return (cached as List).map((p) => Photo.fromJson(p)).toList();
+      // }
       if (cached != null) {
-        return (cached as List).map((p) => Photo.fromJson(p)).toList();
+        try {
+          final String jsonString = utf8.decode(cached as List<int>);
+          final List<dynamic> jsonList = json.decode(jsonString);
+          // Add type checking here
+          if (jsonList.isNotEmpty && jsonList[0] is Map<String, dynamic>) {
+            return jsonList
+                .map((p) => Photo.fromJson(p as Map<String, dynamic>))
+                .toList();
+          }
+          // If cached data isn't in the right format, ignore it and fetch fresh
+        } catch (e) {
+          // If there's any error processing cached data, ignore it and fetch fresh
+        }
       }
 
       // Fetch from repository
       final photos = await repository.fetchPhotos();
 
       // Update cache
-      await cacheService.put('photos', photos.map((p) => p.toJson()).toList());
+      // await cacheService.put('photos', photos.map((p) => p.toJson()).toList());
+      // Convert the data to a JSON string first, then to bytes
+      final String jsonString =
+          json.encode(photos.map((p) => p.toJson()).toList());
+      final List<int> bytes = utf8.encode(jsonString);
+      await cacheService.put('photos', bytes);
 
       return photos;
     } catch (e) {
@@ -53,13 +74,13 @@ class PhotoService implements IPhotoService {
   }
 
   @override
-  String getPhotoUrl(String filename) {
-    return '${repository.baseUrl}/photos/$filename';
+  Future<String> getPhotoUrl(String filename) async {
+    return '${await repository.baseUrl}/photos/$filename';
   }
 
   @override
-  String getThumbnailUrl(String filename) {
-    return '${repository.baseUrl}/photos/thumbnail/$filename';
+  Future<String> getThumbnailUrl(String filename) async {
+    return '${await repository.baseUrl}/photos/thumbnail/$filename';
   }
 
   @override
