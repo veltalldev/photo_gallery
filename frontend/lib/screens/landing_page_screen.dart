@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:photo_gallery/screens/gallery_screen.dart';
+import 'package:photo_gallery/widgets/common/gradient_scaffold.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LandingPageScreen extends StatelessWidget {
@@ -56,17 +57,7 @@ class _LandingPageContentState extends State<_LandingPageContent> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Theme.of(context).colorScheme.primaryContainer,
-              Theme.of(context).colorScheme.surface,
-            ],
-          ),
-        ),
+      body: GradientScaffold(
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(

@@ -18,7 +18,7 @@ class MyApp extends StatelessWidget {
       title: 'Photo Gallery',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.purple,
+          seedColor: Colors.green,
           brightness: Brightness.light,
         ),
         useMaterial3: true,
