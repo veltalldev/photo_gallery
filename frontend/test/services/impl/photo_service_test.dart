@@ -22,7 +22,9 @@ void main() {
     );
 
     // Set up default base URL
-    when(mockPhotoRepository.baseUrl).thenReturn('http://localhost:8000');
+    when(mockPhotoRepository.baseUrl).thenReturn(
+      Future.value('http://localhost:8000'),
+    );
   });
 
   group('getPhotos', () {
