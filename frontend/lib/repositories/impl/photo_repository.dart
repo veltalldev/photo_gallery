@@ -4,12 +4,12 @@ import 'package:http/http.dart' as http;
 import '../interfaces/i_photo_repository.dart';
 import '../../services/interfaces/i_cache_service.dart';
 import '../../models/domain/photo.dart';
-import 'package:photo_gallery/services/impl/network_config_service.dart';
 
 class PhotoRepository implements IPhotoRepository {
   final http.Client client;
   final ICacheService cacheService;
-  String? _baseUrl; // Cache the base URL
+  @override
+  final String baseUrl = 'http://192.168.4.26:8000'; // TODO: Move to config
 
   PhotoRepository({
     required this.client,
@@ -17,28 +17,18 @@ class PhotoRepository implements IPhotoRepository {
   });
 
   @override
-  Future<String> get baseUrl async {
-    _baseUrl ??= await NetworkConfigService.getBaseUrl();
-    print("$_baseUrl");
-    return _baseUrl!;
-  }
-
-  // Update all methods to use the async baseUrl
-  @override
   Future<List<Photo>> fetchPhotos() async {
     try {
-      final response =
-          await client.get(Uri.parse('${await baseUrl}/api/photos'));
+      final response = await client.get(Uri.parse('$baseUrl/api/photos'));
 
       if (response.statusCode == 200) {
         final List<dynamic> photoList = json.decode(response.body);
-        final currentBaseUrl = await baseUrl;
         return photoList
             .map((filename) => Photo(
                   id: filename,
                   filename: filename,
-                  thumbnailUrl: '$currentBaseUrl/photos/thumbnail/$filename',
-                  fullImageUrl: '$currentBaseUrl/photos/$filename',
+                  thumbnailUrl: '$baseUrl/photos/thumbnail/$filename',
+                  fullImageUrl: '$baseUrl/photos/$filename',
                 ))
             .toList();
       } else {
@@ -52,16 +42,15 @@ class PhotoRepository implements IPhotoRepository {
   @override
   Future<Photo?> fetchPhoto(String id) async {
     try {
-      final response =
-          await client.get(Uri.parse('${await baseUrl}/api/photos/$id'));
+      final response = await client.get(Uri.parse('$baseUrl/api/photos/$id'));
 
       if (response.statusCode == 200) {
-        final currentBaseUrl = await baseUrl;
         return Photo(
           id: id,
           filename: id,
-          thumbnailUrl: '$currentBaseUrl/photos/thumbnail/$id',
-          fullImageUrl: '$currentBaseUrl/photos/$id',
+          thumbnailUrl: '$baseUrl/photos/thumbnail/$id',
+          fullImageUrl: '$baseUrl/photos/$id',
+          // We could add additional metadata here from response if needed
         );
       } else if (response.statusCode == 404) {
         return null;
@@ -76,7 +65,7 @@ class PhotoRepository implements IPhotoRepository {
   @override
   Future<void> deletePhoto(String id) async {
     final response = await client.delete(
-      Uri.parse('${await baseUrl}/api/photos/$id'),
+      Uri.parse('$baseUrl/api/photos/$id'),
     );
 
     if (response.statusCode != 200) {
@@ -92,11 +81,9 @@ class PhotoRepository implements IPhotoRepository {
     int? seed,
   }) async {
     try {
-      final currentBaseUrl = await baseUrl;
-
       // Get metadata for the source photo
       final metadataResponse = await client.get(
-        Uri.parse('$currentBaseUrl/api/metadata/$sourcePhoto'),
+        Uri.parse('$baseUrl/api/metadata/$sourcePhoto'),
       );
 
       if (metadataResponse.statusCode != 200) {
@@ -111,7 +98,7 @@ class PhotoRepository implements IPhotoRepository {
 
       // Trigger the generation
       final generationResponse = await client.post(
-        Uri.parse('$currentBaseUrl/api/generate'),
+        Uri.parse('$baseUrl/api/generate'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'image_name': sourcePhoto,

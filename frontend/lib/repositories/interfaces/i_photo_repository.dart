@@ -6,6 +6,7 @@ abstract class IPhotoRepository {
   Future<Photo?> fetchPhoto(String id);
   Future<void> deletePhoto(String id);
 
+  // New method for generation
   Future<void> generatePhotos({
     required String sourcePhoto,
     required String additionalPrompt,
@@ -13,6 +14,6 @@ abstract class IPhotoRepository {
     int? seed,
   });
 
-  // Updated to async
-  Future<String> get baseUrl;
+  // Base URL accessor
+  String get baseUrl;
 }

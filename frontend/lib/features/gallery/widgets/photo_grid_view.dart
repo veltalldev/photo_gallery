@@ -26,25 +26,11 @@ class _PhotoGridViewState extends State<PhotoGridView>
     with AutomaticKeepAliveClientMixin {
   List<Photo> _photos = [];
   bool _isGenerating = false;
-  String? _baseUrl;
 
   @override
   void initState() {
     super.initState();
-    _initialize();
-    // _loadPhotos();
-  }
-
-  Future<void> _initialize() async {
-    try {
-      final url = await widget.photoService.getThumbnailUrl('');
-      setState(() {
-        _baseUrl = url.split('/photos')[0];
-      });
-      await _loadPhotos();
-    } catch (e) {
-      throw PhotoError('Failed to initialize', e);
-    }
+    _loadPhotos();
   }
 
   @override
@@ -62,11 +48,7 @@ class _PhotoGridViewState extends State<PhotoGridView>
   bool _isSelectionMode = false;
 
   String _getThumbnailUrl(Photo photo) {
-    // return widget.photoService.getThumbnailUrl(photo.filename);
-    if (_baseUrl == null) {
-      throw PhotoError('Base URL not initialized');
-    }
-    return '$_baseUrl/photos/thumbnail/${photo.filename}';
+    return widget.photoService.getThumbnailUrl(photo.filename);
   }
 
   ImageProvider _getImageProvider(Photo photo) {
@@ -288,7 +270,7 @@ class _PhotoGridViewState extends State<PhotoGridView>
       onRetry: _loadPhotos,
       child: Scaffold(
         appBar: AppBar(
-          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+          backgroundColor: Colors.deepPurpleAccent,
           title: _isSelectionMode
               ? Text('${_selectedPhotos.length} selected')
               : const Text('Photo Gallery'),

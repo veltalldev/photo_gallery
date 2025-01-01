@@ -8,8 +8,8 @@ abstract class IPhotoService {
   Future<void> refreshPhotos();
 
   // New methods
-  Future<String> getPhotoUrl(String filename);
-  Future<String> getThumbnailUrl(String filename);
+  String getPhotoUrl(String filename);
+  String getThumbnailUrl(String filename);
   Future<void> generateMoreLikeThis({
     required String sourcePhoto,
     required String additionalPrompt,
