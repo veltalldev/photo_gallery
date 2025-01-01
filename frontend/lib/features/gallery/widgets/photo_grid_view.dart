@@ -270,7 +270,7 @@ class _PhotoGridViewState extends State<PhotoGridView>
       onRetry: _loadPhotos,
       child: Scaffold(
         appBar: AppBar(
-          backgroundColor: Colors.deepPurpleAccent,
+          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
           title: _isSelectionMode
               ? Text('${_selectedPhotos.length} selected')
               : const Text('Photo Gallery'),
