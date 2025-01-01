@@ -1,8 +1,11 @@
 import 'app_error.dart';
 
-abstract class ServerError extends AppError {
+class ServerError extends AppError {
   final int statusCode;
 
-  ServerError(String message, String? code, this.statusCode)
-      : super(message, code);
+  ServerError({
+    required String message,
+    required this.statusCode,
+    String? code,
+  }) : super(message, code ?? 'SERVER_ERROR');
 }

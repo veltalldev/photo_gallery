@@ -7,7 +7,7 @@ import 'package:photo_gallery/core/errors/photo_error.dart';
 import 'package:photo_gallery/features/viewer/widgets/full_screen_photo_viewer.dart';
 import 'package:photo_gallery/models/domain/photo.dart';
 import 'package:photo_gallery/services/interfaces/i_photo_service.dart';
-import 'package:photo_gallery/services/photo_cache_manager.dart';
+import 'package:photo_gallery/services/impl/photo_cache_manager.dart';
 import 'package:photo_gallery/widgets/errors/photo_error_boundary.dart';
 import 'package:photo_gallery/services/interfaces/i_cache_service.dart';
 
@@ -120,12 +120,16 @@ class _PhotoGridViewState extends State<PhotoGridView>
 
   Future<void> _loadPhotos() async {
     try {
+      debugPrint('Loading photos...');
       final photos = await widget.photoService.getPhotos();
       setState(() {
         _photos = photos;
       });
     } catch (e) {
-      throw PhotoLoadError();
+      debugPrint('Error loading photos: $e');
+      throw PhotoLoadError(
+        message: 'Error loading photos: $e',
+      );
     }
   }
 

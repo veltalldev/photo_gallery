@@ -3,18 +3,21 @@
 // Do not manually edit this file.
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'dart:async' as _i5;
-import 'dart:convert' as _i8;
-import 'dart:typed_data' as _i9;
+import 'dart:async' as _i6;
+import 'dart:convert' as _i10;
+import 'dart:typed_data' as _i11;
 
-import 'package:http/http.dart' as _i2;
+import 'package:flutter_cache_manager/flutter_cache_manager.dart' as _i2;
+import 'package:http/http.dart' as _i3;
 import 'package:mockito/mockito.dart' as _i1;
-import 'package:mockito/src/dummies.dart' as _i4;
-import 'package:photo_gallery/models/domain/photo.dart' as _i6;
+import 'package:mockito/src/dummies.dart' as _i5;
+import 'package:photo_gallery/models/domain/photo.dart' as _i7;
 import 'package:photo_gallery/repositories/interfaces/i_photo_repository.dart'
-    as _i3;
-import 'package:photo_gallery/services/interfaces/i_cache_service.dart' as _i7;
-import 'package:photo_gallery/services/interfaces/i_photo_service.dart' as _i10;
+    as _i4;
+import 'package:photo_gallery/services/interfaces/i_cache_service.dart' as _i8;
+import 'package:photo_gallery/services/interfaces/i_photo_cache_manager.dart'
+    as _i9;
+import 'package:photo_gallery/services/interfaces/i_photo_service.dart' as _i12;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -29,8 +32,9 @@ import 'package:photo_gallery/services/interfaces/i_photo_service.dart' as _i10;
 // ignore_for_file: camel_case_types
 // ignore_for_file: subtype_of_sealed_class
 
-class _FakeResponse_0 extends _i1.SmartFake implements _i2.Response {
-  _FakeResponse_0(
+class _FakeBaseCacheManager_0 extends _i1.SmartFake
+    implements _i2.BaseCacheManager {
+  _FakeBaseCacheManager_0(
     Object parent,
     Invocation parentInvocation,
   ) : super(
@@ -39,9 +43,19 @@ class _FakeResponse_0 extends _i1.SmartFake implements _i2.Response {
         );
 }
 
-class _FakeStreamedResponse_1 extends _i1.SmartFake
-    implements _i2.StreamedResponse {
-  _FakeStreamedResponse_1(
+class _FakeResponse_1 extends _i1.SmartFake implements _i3.Response {
+  _FakeResponse_1(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
+}
+
+class _FakeStreamedResponse_2 extends _i1.SmartFake
+    implements _i3.StreamedResponse {
+  _FakeStreamedResponse_2(
     Object parent,
     Invocation parentInvocation,
   ) : super(
@@ -53,53 +67,53 @@ class _FakeStreamedResponse_1 extends _i1.SmartFake
 /// A class which mocks [IPhotoRepository].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockIPhotoRepository extends _i1.Mock implements _i3.IPhotoRepository {
+class MockIPhotoRepository extends _i1.Mock implements _i4.IPhotoRepository {
   @override
   String get baseUrl => (super.noSuchMethod(
         Invocation.getter(#baseUrl),
-        returnValue: _i4.dummyValue<String>(
+        returnValue: _i5.dummyValue<String>(
           this,
           Invocation.getter(#baseUrl),
         ),
-        returnValueForMissingStub: _i4.dummyValue<String>(
+        returnValueForMissingStub: _i5.dummyValue<String>(
           this,
           Invocation.getter(#baseUrl),
         ),
       ) as String);
 
   @override
-  _i5.Future<List<_i6.Photo>> fetchPhotos() => (super.noSuchMethod(
+  _i6.Future<List<_i7.Photo>> fetchPhotos() => (super.noSuchMethod(
         Invocation.method(
           #fetchPhotos,
           [],
         ),
-        returnValue: _i5.Future<List<_i6.Photo>>.value(<_i6.Photo>[]),
+        returnValue: _i6.Future<List<_i7.Photo>>.value(<_i7.Photo>[]),
         returnValueForMissingStub:
-            _i5.Future<List<_i6.Photo>>.value(<_i6.Photo>[]),
-      ) as _i5.Future<List<_i6.Photo>>);
+            _i6.Future<List<_i7.Photo>>.value(<_i7.Photo>[]),
+      ) as _i6.Future<List<_i7.Photo>>);
 
   @override
-  _i5.Future<_i6.Photo?> fetchPhoto(String? id) => (super.noSuchMethod(
+  _i6.Future<_i7.Photo?> fetchPhoto(String? id) => (super.noSuchMethod(
         Invocation.method(
           #fetchPhoto,
           [id],
         ),
-        returnValue: _i5.Future<_i6.Photo?>.value(),
-        returnValueForMissingStub: _i5.Future<_i6.Photo?>.value(),
-      ) as _i5.Future<_i6.Photo?>);
+        returnValue: _i6.Future<_i7.Photo?>.value(),
+        returnValueForMissingStub: _i6.Future<_i7.Photo?>.value(),
+      ) as _i6.Future<_i7.Photo?>);
 
   @override
-  _i5.Future<void> deletePhoto(String? id) => (super.noSuchMethod(
+  _i6.Future<void> deletePhoto(String? id) => (super.noSuchMethod(
         Invocation.method(
           #deletePhoto,
           [id],
         ),
-        returnValue: _i5.Future<void>.value(),
-        returnValueForMissingStub: _i5.Future<void>.value(),
-      ) as _i5.Future<void>);
+        returnValue: _i6.Future<void>.value(),
+        returnValueForMissingStub: _i6.Future<void>.value(),
+      ) as _i6.Future<void>);
 
   @override
-  _i5.Future<void> generatePhotos({
+  _i6.Future<void> generatePhotos({
     required String? sourcePhoto,
     required String? additionalPrompt,
     required int? count,
@@ -116,24 +130,24 @@ class MockIPhotoRepository extends _i1.Mock implements _i3.IPhotoRepository {
             #seed: seed,
           },
         ),
-        returnValue: _i5.Future<void>.value(),
-        returnValueForMissingStub: _i5.Future<void>.value(),
-      ) as _i5.Future<void>);
+        returnValue: _i6.Future<void>.value(),
+        returnValueForMissingStub: _i6.Future<void>.value(),
+      ) as _i6.Future<void>);
 }
 
 /// A class which mocks [ICacheService].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockICacheService extends _i1.Mock implements _i7.ICacheService {
+class MockICacheService extends _i1.Mock implements _i8.ICacheService {
   @override
-  _i5.Stream<_i7.CacheStats> get stats => (super.noSuchMethod(
+  _i6.Stream<_i8.CacheStats> get stats => (super.noSuchMethod(
         Invocation.getter(#stats),
-        returnValue: _i5.Stream<_i7.CacheStats>.empty(),
-        returnValueForMissingStub: _i5.Stream<_i7.CacheStats>.empty(),
-      ) as _i5.Stream<_i7.CacheStats>);
+        returnValue: _i6.Stream<_i8.CacheStats>.empty(),
+        returnValueForMissingStub: _i6.Stream<_i8.CacheStats>.empty(),
+      ) as _i6.Stream<_i8.CacheStats>);
 
   @override
-  _i5.Future<void> put(
+  _i6.Future<void> put(
     String? key,
     dynamic data, {
     Duration? maxAge,
@@ -147,49 +161,143 @@ class MockICacheService extends _i1.Mock implements _i7.ICacheService {
           ],
           {#maxAge: maxAge},
         ),
-        returnValue: _i5.Future<void>.value(),
-        returnValueForMissingStub: _i5.Future<void>.value(),
-      ) as _i5.Future<void>);
+        returnValue: _i6.Future<void>.value(),
+        returnValueForMissingStub: _i6.Future<void>.value(),
+      ) as _i6.Future<void>);
 
   @override
-  _i5.Future<T?> get<T>(String? key) => (super.noSuchMethod(
+  _i6.Future<T?> get<T>(String? key) => (super.noSuchMethod(
         Invocation.method(
           #get,
           [key],
         ),
-        returnValue: _i5.Future<T?>.value(),
-        returnValueForMissingStub: _i5.Future<T?>.value(),
-      ) as _i5.Future<T?>);
+        returnValue: _i6.Future<T?>.value(),
+        returnValueForMissingStub: _i6.Future<T?>.value(),
+      ) as _i6.Future<T?>);
 
   @override
-  _i5.Future<void> remove(String? key) => (super.noSuchMethod(
+  _i6.Future<void> remove(String? key) => (super.noSuchMethod(
         Invocation.method(
           #remove,
           [key],
         ),
-        returnValue: _i5.Future<void>.value(),
-        returnValueForMissingStub: _i5.Future<void>.value(),
-      ) as _i5.Future<void>);
+        returnValue: _i6.Future<void>.value(),
+        returnValueForMissingStub: _i6.Future<void>.value(),
+      ) as _i6.Future<void>);
 
   @override
-  _i5.Future<void> clear() => (super.noSuchMethod(
+  _i6.Future<void> clear() => (super.noSuchMethod(
         Invocation.method(
           #clear,
           [],
         ),
-        returnValue: _i5.Future<void>.value(),
-        returnValueForMissingStub: _i5.Future<void>.value(),
-      ) as _i5.Future<void>);
+        returnValue: _i6.Future<void>.value(),
+        returnValueForMissingStub: _i6.Future<void>.value(),
+      ) as _i6.Future<void>);
 
   @override
-  _i5.Future<bool> containsKey(String? key) => (super.noSuchMethod(
+  _i6.Future<bool> containsKey(String? key) => (super.noSuchMethod(
         Invocation.method(
           #containsKey,
           [key],
         ),
-        returnValue: _i5.Future<bool>.value(false),
-        returnValueForMissingStub: _i5.Future<bool>.value(false),
-      ) as _i5.Future<bool>);
+        returnValue: _i6.Future<bool>.value(false),
+        returnValueForMissingStub: _i6.Future<bool>.value(false),
+      ) as _i6.Future<bool>);
+
+  @override
+  void dispose() => super.noSuchMethod(
+        Invocation.method(
+          #dispose,
+          [],
+        ),
+        returnValueForMissingStub: null,
+      );
+}
+
+/// A class which mocks [IPhotoCacheManager].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockIPhotoCacheManager extends _i1.Mock
+    implements _i9.IPhotoCacheManager {
+  @override
+  _i2.BaseCacheManager get cacheManager => (super.noSuchMethod(
+        Invocation.getter(#cacheManager),
+        returnValue: _FakeBaseCacheManager_0(
+          this,
+          Invocation.getter(#cacheManager),
+        ),
+        returnValueForMissingStub: _FakeBaseCacheManager_0(
+          this,
+          Invocation.getter(#cacheManager),
+        ),
+      ) as _i2.BaseCacheManager);
+
+  @override
+  _i6.Stream<_i8.CacheStats> get stats => (super.noSuchMethod(
+        Invocation.getter(#stats),
+        returnValue: _i6.Stream<_i8.CacheStats>.empty(),
+        returnValueForMissingStub: _i6.Stream<_i8.CacheStats>.empty(),
+      ) as _i6.Stream<_i8.CacheStats>);
+
+  @override
+  _i6.Future<void> put(
+    String? key,
+    dynamic data, {
+    Duration? maxAge,
+  }) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #put,
+          [
+            key,
+            data,
+          ],
+          {#maxAge: maxAge},
+        ),
+        returnValue: _i6.Future<void>.value(),
+        returnValueForMissingStub: _i6.Future<void>.value(),
+      ) as _i6.Future<void>);
+
+  @override
+  _i6.Future<T?> get<T>(String? key) => (super.noSuchMethod(
+        Invocation.method(
+          #get,
+          [key],
+        ),
+        returnValue: _i6.Future<T?>.value(),
+        returnValueForMissingStub: _i6.Future<T?>.value(),
+      ) as _i6.Future<T?>);
+
+  @override
+  _i6.Future<void> remove(String? key) => (super.noSuchMethod(
+        Invocation.method(
+          #remove,
+          [key],
+        ),
+        returnValue: _i6.Future<void>.value(),
+        returnValueForMissingStub: _i6.Future<void>.value(),
+      ) as _i6.Future<void>);
+
+  @override
+  _i6.Future<void> clear() => (super.noSuchMethod(
+        Invocation.method(
+          #clear,
+          [],
+        ),
+        returnValue: _i6.Future<void>.value(),
+        returnValueForMissingStub: _i6.Future<void>.value(),
+      ) as _i6.Future<void>);
+
+  @override
+  _i6.Future<bool> containsKey(String? key) => (super.noSuchMethod(
+        Invocation.method(
+          #containsKey,
+          [key],
+        ),
+        returnValue: _i6.Future<bool>.value(false),
+        returnValueForMissingStub: _i6.Future<bool>.value(false),
+      ) as _i6.Future<bool>);
 
   @override
   void dispose() => super.noSuchMethod(
@@ -204,9 +312,9 @@ class MockICacheService extends _i1.Mock implements _i7.ICacheService {
 /// A class which mocks [Client].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockHttpClient extends _i1.Mock implements _i2.Client {
+class MockHttpClient extends _i1.Mock implements _i3.Client {
   @override
-  _i5.Future<_i2.Response> head(
+  _i6.Future<_i3.Response> head(
     Uri? url, {
     Map<String, String>? headers,
   }) =>
@@ -216,7 +324,7 @@ class MockHttpClient extends _i1.Mock implements _i2.Client {
           [url],
           {#headers: headers},
         ),
-        returnValue: _i5.Future<_i2.Response>.value(_FakeResponse_0(
+        returnValue: _i6.Future<_i3.Response>.value(_FakeResponse_1(
           this,
           Invocation.method(
             #head,
@@ -225,7 +333,7 @@ class MockHttpClient extends _i1.Mock implements _i2.Client {
           ),
         )),
         returnValueForMissingStub:
-            _i5.Future<_i2.Response>.value(_FakeResponse_0(
+            _i6.Future<_i3.Response>.value(_FakeResponse_1(
           this,
           Invocation.method(
             #head,
@@ -233,10 +341,10 @@ class MockHttpClient extends _i1.Mock implements _i2.Client {
             {#headers: headers},
           ),
         )),
-      ) as _i5.Future<_i2.Response>);
+      ) as _i6.Future<_i3.Response>);
 
   @override
-  _i5.Future<_i2.Response> get(
+  _i6.Future<_i3.Response> get(
     Uri? url, {
     Map<String, String>? headers,
   }) =>
@@ -246,7 +354,7 @@ class MockHttpClient extends _i1.Mock implements _i2.Client {
           [url],
           {#headers: headers},
         ),
-        returnValue: _i5.Future<_i2.Response>.value(_FakeResponse_0(
+        returnValue: _i6.Future<_i3.Response>.value(_FakeResponse_1(
           this,
           Invocation.method(
             #get,
@@ -255,7 +363,7 @@ class MockHttpClient extends _i1.Mock implements _i2.Client {
           ),
         )),
         returnValueForMissingStub:
-            _i5.Future<_i2.Response>.value(_FakeResponse_0(
+            _i6.Future<_i3.Response>.value(_FakeResponse_1(
           this,
           Invocation.method(
             #get,
@@ -263,14 +371,14 @@ class MockHttpClient extends _i1.Mock implements _i2.Client {
             {#headers: headers},
           ),
         )),
-      ) as _i5.Future<_i2.Response>);
+      ) as _i6.Future<_i3.Response>);
 
   @override
-  _i5.Future<_i2.Response> post(
+  _i6.Future<_i3.Response> post(
     Uri? url, {
     Map<String, String>? headers,
     Object? body,
-    _i8.Encoding? encoding,
+    _i10.Encoding? encoding,
   }) =>
       (super.noSuchMethod(
         Invocation.method(
@@ -282,7 +390,7 @@ class MockHttpClient extends _i1.Mock implements _i2.Client {
             #encoding: encoding,
           },
         ),
-        returnValue: _i5.Future<_i2.Response>.value(_FakeResponse_0(
+        returnValue: _i6.Future<_i3.Response>.value(_FakeResponse_1(
           this,
           Invocation.method(
             #post,
@@ -295,7 +403,7 @@ class MockHttpClient extends _i1.Mock implements _i2.Client {
           ),
         )),
         returnValueForMissingStub:
-            _i5.Future<_i2.Response>.value(_FakeResponse_0(
+            _i6.Future<_i3.Response>.value(_FakeResponse_1(
           this,
           Invocation.method(
             #post,
@@ -307,14 +415,14 @@ class MockHttpClient extends _i1.Mock implements _i2.Client {
             },
           ),
         )),
-      ) as _i5.Future<_i2.Response>);
+      ) as _i6.Future<_i3.Response>);
 
   @override
-  _i5.Future<_i2.Response> put(
+  _i6.Future<_i3.Response> put(
     Uri? url, {
     Map<String, String>? headers,
     Object? body,
-    _i8.Encoding? encoding,
+    _i10.Encoding? encoding,
   }) =>
       (super.noSuchMethod(
         Invocation.method(
@@ -326,7 +434,7 @@ class MockHttpClient extends _i1.Mock implements _i2.Client {
             #encoding: encoding,
           },
         ),
-        returnValue: _i5.Future<_i2.Response>.value(_FakeResponse_0(
+        returnValue: _i6.Future<_i3.Response>.value(_FakeResponse_1(
           this,
           Invocation.method(
             #put,
@@ -339,7 +447,7 @@ class MockHttpClient extends _i1.Mock implements _i2.Client {
           ),
         )),
         returnValueForMissingStub:
-            _i5.Future<_i2.Response>.value(_FakeResponse_0(
+            _i6.Future<_i3.Response>.value(_FakeResponse_1(
           this,
           Invocation.method(
             #put,
@@ -351,14 +459,14 @@ class MockHttpClient extends _i1.Mock implements _i2.Client {
             },
           ),
         )),
-      ) as _i5.Future<_i2.Response>);
+      ) as _i6.Future<_i3.Response>);
 
   @override
-  _i5.Future<_i2.Response> patch(
+  _i6.Future<_i3.Response> patch(
     Uri? url, {
     Map<String, String>? headers,
     Object? body,
-    _i8.Encoding? encoding,
+    _i10.Encoding? encoding,
   }) =>
       (super.noSuchMethod(
         Invocation.method(
@@ -370,7 +478,7 @@ class MockHttpClient extends _i1.Mock implements _i2.Client {
             #encoding: encoding,
           },
         ),
-        returnValue: _i5.Future<_i2.Response>.value(_FakeResponse_0(
+        returnValue: _i6.Future<_i3.Response>.value(_FakeResponse_1(
           this,
           Invocation.method(
             #patch,
@@ -383,7 +491,7 @@ class MockHttpClient extends _i1.Mock implements _i2.Client {
           ),
         )),
         returnValueForMissingStub:
-            _i5.Future<_i2.Response>.value(_FakeResponse_0(
+            _i6.Future<_i3.Response>.value(_FakeResponse_1(
           this,
           Invocation.method(
             #patch,
@@ -395,14 +503,14 @@ class MockHttpClient extends _i1.Mock implements _i2.Client {
             },
           ),
         )),
-      ) as _i5.Future<_i2.Response>);
+      ) as _i6.Future<_i3.Response>);
 
   @override
-  _i5.Future<_i2.Response> delete(
+  _i6.Future<_i3.Response> delete(
     Uri? url, {
     Map<String, String>? headers,
     Object? body,
-    _i8.Encoding? encoding,
+    _i10.Encoding? encoding,
   }) =>
       (super.noSuchMethod(
         Invocation.method(
@@ -414,7 +522,7 @@ class MockHttpClient extends _i1.Mock implements _i2.Client {
             #encoding: encoding,
           },
         ),
-        returnValue: _i5.Future<_i2.Response>.value(_FakeResponse_0(
+        returnValue: _i6.Future<_i3.Response>.value(_FakeResponse_1(
           this,
           Invocation.method(
             #delete,
@@ -427,7 +535,7 @@ class MockHttpClient extends _i1.Mock implements _i2.Client {
           ),
         )),
         returnValueForMissingStub:
-            _i5.Future<_i2.Response>.value(_FakeResponse_0(
+            _i6.Future<_i3.Response>.value(_FakeResponse_1(
           this,
           Invocation.method(
             #delete,
@@ -439,10 +547,10 @@ class MockHttpClient extends _i1.Mock implements _i2.Client {
             },
           ),
         )),
-      ) as _i5.Future<_i2.Response>);
+      ) as _i6.Future<_i3.Response>);
 
   @override
-  _i5.Future<String> read(
+  _i6.Future<String> read(
     Uri? url, {
     Map<String, String>? headers,
   }) =>
@@ -452,7 +560,7 @@ class MockHttpClient extends _i1.Mock implements _i2.Client {
           [url],
           {#headers: headers},
         ),
-        returnValue: _i5.Future<String>.value(_i4.dummyValue<String>(
+        returnValue: _i6.Future<String>.value(_i5.dummyValue<String>(
           this,
           Invocation.method(
             #read,
@@ -461,7 +569,7 @@ class MockHttpClient extends _i1.Mock implements _i2.Client {
           ),
         )),
         returnValueForMissingStub:
-            _i5.Future<String>.value(_i4.dummyValue<String>(
+            _i6.Future<String>.value(_i5.dummyValue<String>(
           this,
           Invocation.method(
             #read,
@@ -469,10 +577,10 @@ class MockHttpClient extends _i1.Mock implements _i2.Client {
             {#headers: headers},
           ),
         )),
-      ) as _i5.Future<String>);
+      ) as _i6.Future<String>);
 
   @override
-  _i5.Future<_i9.Uint8List> readBytes(
+  _i6.Future<_i11.Uint8List> readBytes(
     Uri? url, {
     Map<String, String>? headers,
   }) =>
@@ -482,20 +590,20 @@ class MockHttpClient extends _i1.Mock implements _i2.Client {
           [url],
           {#headers: headers},
         ),
-        returnValue: _i5.Future<_i9.Uint8List>.value(_i9.Uint8List(0)),
+        returnValue: _i6.Future<_i11.Uint8List>.value(_i11.Uint8List(0)),
         returnValueForMissingStub:
-            _i5.Future<_i9.Uint8List>.value(_i9.Uint8List(0)),
-      ) as _i5.Future<_i9.Uint8List>);
+            _i6.Future<_i11.Uint8List>.value(_i11.Uint8List(0)),
+      ) as _i6.Future<_i11.Uint8List>);
 
   @override
-  _i5.Future<_i2.StreamedResponse> send(_i2.BaseRequest? request) =>
+  _i6.Future<_i3.StreamedResponse> send(_i3.BaseRequest? request) =>
       (super.noSuchMethod(
         Invocation.method(
           #send,
           [request],
         ),
         returnValue:
-            _i5.Future<_i2.StreamedResponse>.value(_FakeStreamedResponse_1(
+            _i6.Future<_i3.StreamedResponse>.value(_FakeStreamedResponse_2(
           this,
           Invocation.method(
             #send,
@@ -503,14 +611,14 @@ class MockHttpClient extends _i1.Mock implements _i2.Client {
           ),
         )),
         returnValueForMissingStub:
-            _i5.Future<_i2.StreamedResponse>.value(_FakeStreamedResponse_1(
+            _i6.Future<_i3.StreamedResponse>.value(_FakeStreamedResponse_2(
           this,
           Invocation.method(
             #send,
             [request],
           ),
         )),
-      ) as _i5.Future<_i2.StreamedResponse>);
+      ) as _i6.Future<_i3.StreamedResponse>);
 
   @override
   void close() => super.noSuchMethod(
@@ -525,47 +633,47 @@ class MockHttpClient extends _i1.Mock implements _i2.Client {
 /// A class which mocks [IPhotoService].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockIPhotoService extends _i1.Mock implements _i10.IPhotoService {
+class MockIPhotoService extends _i1.Mock implements _i12.IPhotoService {
   @override
-  _i5.Future<List<_i6.Photo>> getPhotos() => (super.noSuchMethod(
+  _i6.Future<List<_i7.Photo>> getPhotos() => (super.noSuchMethod(
         Invocation.method(
           #getPhotos,
           [],
         ),
-        returnValue: _i5.Future<List<_i6.Photo>>.value(<_i6.Photo>[]),
+        returnValue: _i6.Future<List<_i7.Photo>>.value(<_i7.Photo>[]),
         returnValueForMissingStub:
-            _i5.Future<List<_i6.Photo>>.value(<_i6.Photo>[]),
-      ) as _i5.Future<List<_i6.Photo>>);
+            _i6.Future<List<_i7.Photo>>.value(<_i7.Photo>[]),
+      ) as _i6.Future<List<_i7.Photo>>);
 
   @override
-  _i5.Future<_i6.Photo?> getPhoto(String? id) => (super.noSuchMethod(
+  _i6.Future<_i7.Photo?> getPhoto(String? id) => (super.noSuchMethod(
         Invocation.method(
           #getPhoto,
           [id],
         ),
-        returnValue: _i5.Future<_i6.Photo?>.value(),
-        returnValueForMissingStub: _i5.Future<_i6.Photo?>.value(),
-      ) as _i5.Future<_i6.Photo?>);
+        returnValue: _i6.Future<_i7.Photo?>.value(),
+        returnValueForMissingStub: _i6.Future<_i7.Photo?>.value(),
+      ) as _i6.Future<_i7.Photo?>);
 
   @override
-  _i5.Future<void> deletePhoto(String? id) => (super.noSuchMethod(
+  _i6.Future<void> deletePhoto(String? id) => (super.noSuchMethod(
         Invocation.method(
           #deletePhoto,
           [id],
         ),
-        returnValue: _i5.Future<void>.value(),
-        returnValueForMissingStub: _i5.Future<void>.value(),
-      ) as _i5.Future<void>);
+        returnValue: _i6.Future<void>.value(),
+        returnValueForMissingStub: _i6.Future<void>.value(),
+      ) as _i6.Future<void>);
 
   @override
-  _i5.Future<void> refreshPhotos() => (super.noSuchMethod(
+  _i6.Future<void> refreshPhotos() => (super.noSuchMethod(
         Invocation.method(
           #refreshPhotos,
           [],
         ),
-        returnValue: _i5.Future<void>.value(),
-        returnValueForMissingStub: _i5.Future<void>.value(),
-      ) as _i5.Future<void>);
+        returnValue: _i6.Future<void>.value(),
+        returnValueForMissingStub: _i6.Future<void>.value(),
+      ) as _i6.Future<void>);
 
   @override
   String getPhotoUrl(String? filename) => (super.noSuchMethod(
@@ -573,14 +681,14 @@ class MockIPhotoService extends _i1.Mock implements _i10.IPhotoService {
           #getPhotoUrl,
           [filename],
         ),
-        returnValue: _i4.dummyValue<String>(
+        returnValue: _i5.dummyValue<String>(
           this,
           Invocation.method(
             #getPhotoUrl,
             [filename],
           ),
         ),
-        returnValueForMissingStub: _i4.dummyValue<String>(
+        returnValueForMissingStub: _i5.dummyValue<String>(
           this,
           Invocation.method(
             #getPhotoUrl,
@@ -595,14 +703,14 @@ class MockIPhotoService extends _i1.Mock implements _i10.IPhotoService {
           #getThumbnailUrl,
           [filename],
         ),
-        returnValue: _i4.dummyValue<String>(
+        returnValue: _i5.dummyValue<String>(
           this,
           Invocation.method(
             #getThumbnailUrl,
             [filename],
           ),
         ),
-        returnValueForMissingStub: _i4.dummyValue<String>(
+        returnValueForMissingStub: _i5.dummyValue<String>(
           this,
           Invocation.method(
             #getThumbnailUrl,
@@ -612,7 +720,7 @@ class MockIPhotoService extends _i1.Mock implements _i10.IPhotoService {
       ) as String);
 
   @override
-  _i5.Future<void> generateMoreLikeThis({
+  _i6.Future<void> generateMoreLikeThis({
     required String? sourcePhoto,
     required String? additionalPrompt,
     required int? count,
@@ -629,7 +737,7 @@ class MockIPhotoService extends _i1.Mock implements _i10.IPhotoService {
             #seed: seed,
           },
         ),
-        returnValue: _i5.Future<void>.value(),
-        returnValueForMissingStub: _i5.Future<void>.value(),
-      ) as _i5.Future<void>);
+        returnValue: _i6.Future<void>.value(),
+        returnValueForMissingStub: _i6.Future<void>.value(),
+      ) as _i6.Future<void>);
 }

@@ -5,8 +5,13 @@ abstract class PhotoError extends AppError {
 }
 
 class PhotoLoadError extends PhotoError {
-  PhotoLoadError({String? message, String? code})
-      : super(message ?? 'Error loading photos', code ?? 'PHOTO_LOAD_ERROR');
+  PhotoLoadError({
+    String? message,
+    String? code,
+  }) : super(
+          message ?? 'Error loading photos',
+          code ?? 'PHOTO_LOAD_ERROR',
+        );
 }
 
 class PhotoNotFoundError extends PhotoError {

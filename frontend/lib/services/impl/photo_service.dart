@@ -1,4 +1,7 @@
 // lib/services/impl/photo_service.dart
+import 'package:flutter/material.dart';
+import 'package:photo_gallery/core/errors/photo_error.dart';
+
 import '../interfaces/i_photo_service.dart';
 import '../../repositories/interfaces/i_photo_repository.dart';
 import '../../services/interfaces/i_cache_service.dart';
@@ -17,27 +20,17 @@ class PhotoService implements IPhotoService {
   @override
   Future<List<Photo>> getPhotos() async {
     try {
-      // Check cache first
-      final cached = await cacheService.get('photos');
-      if (cached != null) {
-        // Decode the UTF-8 bytes back to a string, then parse as JSON
-        final jsonString = utf8.decode(List<int>.from(cached));
-        final jsonList = jsonDecode(jsonString) as List;
-        return jsonList
-            .map((p) => Photo.fromJson(p as Map<String, dynamic>))
-            .toList();
+      debugPrint('PhotoService: Getting photos...');
+      final cachedPhotos = await _getCachedPhotos();
+      if (cachedPhotos != null) {
+        return cachedPhotos;
       }
-
-      // Fetch from repository
-      final photos = await repository.fetchPhotos();
-
-      // Convert to JSON string then to UTF-8 bytes before caching
-      final jsonString = jsonEncode(photos.map((p) => p.toJson()).toList());
-      await cacheService.put('photos', utf8.encode(jsonString));
-
-      return photos;
+      return await _fetchAndCachePhotos();
     } catch (e) {
-      throw Exception('Failed to get photos: $e');
+      debugPrint('PhotoService error: $e');
+      throw PhotoLoadError(
+        message: 'Failed to load photos: $e',
+      );
     }
   }
 
@@ -89,5 +82,45 @@ class PhotoService implements IPhotoService {
     } catch (e) {
       throw Exception('Failed to generate photos: $e');
     }
+  }
+
+  Future<List<Photo>?> _getCachedPhotos() async {
+    try {
+      final cached = await cacheService.get('photos');
+      if (cached != null) {
+        debugPrint('Cache hit: decoding photos');
+        if (cached is List) {
+          return cached
+              .map((p) => Photo.fromJson(p as Map<String, dynamic>))
+              .toList();
+        }
+        // If it's raw bytes, decode it
+        final jsonString =
+            utf8.decode(cached is List<int> ? cached : List<int>.from(cached));
+        final jsonList = jsonDecode(jsonString) as List;
+        return jsonList
+            .map((p) => Photo.fromJson(p as Map<String, dynamic>))
+            .toList();
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Cache decode error: $e');
+      return null; // On cache error, just return null to trigger fresh fetch
+    }
+  }
+
+  Future<List<Photo>> _fetchAndCachePhotos() async {
+    debugPrint('Cache miss: fetching photos');
+    final photos = await repository.fetchPhotos();
+
+    try {
+      final jsonString = jsonEncode(photos.map((p) => p.toJson()).toList());
+      await cacheService.put('photos', utf8.encode(jsonString));
+    } catch (e) {
+      debugPrint('Cache store error: $e');
+      // Continue even if caching fails
+    }
+
+    return photos;
   }
 }

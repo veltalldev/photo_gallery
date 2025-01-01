@@ -35,21 +35,19 @@ class Photo {
     return Photo(
       id: json['id'] as String,
       filename: json['filename'] as String,
-      createdAt: json['createdAt'] != null
-          ? DateTime.parse(json['createdAt'] as String)
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'] as String)
           : null,
-      thumbnailUrl: json['thumbnailUrl'] as String?,
-      fullImageUrl: json['fullImageUrl'] as String?,
+      thumbnailUrl: json['thumbnail_url'] as String?,
+      fullImageUrl: json['full_image_url'] as String?,
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'filename': filename,
-      if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
-      if (thumbnailUrl != null) 'thumbnailUrl': thumbnailUrl,
-      if (fullImageUrl != null) 'fullImageUrl': fullImageUrl,
-    };
-  }
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'filename': filename,
+        'created_at': createdAt?.toIso8601String(),
+        'thumbnail_url': thumbnailUrl,
+        'full_image_url': fullImageUrl,
+      };
 }
