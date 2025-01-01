@@ -1,6 +1,7 @@
 // lib/widgets/error_boundaries/photo_error_boundary.dart
 import 'package:flutter/material.dart';
 import 'package:photo_gallery/core/errors/app_error.dart';
+import 'package:photo_gallery/core/errors/photo_error.dart';
 import 'package:photo_gallery/widgets/errors/error_boundary.dart';
 
 class PhotoErrorBoundary extends StatelessWidget {
