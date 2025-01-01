@@ -3,19 +3,22 @@ import 'dart:collection';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
-import 'package:photo_gallery/core/errors/app_error.dart';
+import 'package:photo_gallery/core/errors/photo_error.dart';
 import 'package:photo_gallery/features/viewer/widgets/full_screen_photo_viewer.dart';
 import 'package:photo_gallery/models/domain/photo.dart';
 import 'package:photo_gallery/services/interfaces/i_photo_service.dart';
 import 'package:photo_gallery/services/photo_cache_manager.dart';
 import 'package:photo_gallery/widgets/errors/photo_error_boundary.dart';
+import 'package:photo_gallery/services/interfaces/i_cache_service.dart';
 
 class PhotoGridView extends StatefulWidget {
   final IPhotoService photoService;
+  final ICacheService cacheService;
 
   const PhotoGridView({
     super.key,
     required this.photoService,
+    required this.cacheService,
   });
 
   @override
@@ -60,7 +63,7 @@ class _PhotoGridViewState extends State<PhotoGridView>
 
     final provider = CachedNetworkImageProvider(
       _getThumbnailUrl(photo),
-      cacheManager: PhotoCacheManager(),
+      cacheManager: (widget.cacheService as PhotoCacheManager).cacheManager,
     );
 
     if (_imageCache.length >= maxCachedImages) {
@@ -122,7 +125,7 @@ class _PhotoGridViewState extends State<PhotoGridView>
         _photos = photos;
       });
     } catch (e) {
-      throw PhotoError('Error loading photos', e);
+      throw PhotoLoadError();
     }
   }
 
@@ -155,10 +158,9 @@ class _PhotoGridViewState extends State<PhotoGridView>
           photos: _photos,
           initialIndex: currentIndex,
           isGenerating: _isGenerating,
+          cacheService: widget.cacheService,
           onGenerateMore: (additionalPrompt, count, seed) {
-            // Close the bottom sheet
             Navigator.pop(context);
-            // Trigger generation
             _triggerMoreLikeThis(additionalPrompt, count, seed, photo);
           },
         ),
@@ -203,7 +205,8 @@ class _PhotoGridViewState extends State<PhotoGridView>
               tag: photo.id,
               child: CachedNetworkImage(
                 imageUrl: _getThumbnailUrl(photo),
-                cacheManager: PhotoCacheManager(),
+                cacheManager:
+                    (widget.cacheService as PhotoCacheManager).cacheManager,
                 imageBuilder: (context, imageProvider) {
                   final provider = _getImageProvider(photo);
                   return Container(
@@ -235,7 +238,7 @@ class _PhotoGridViewState extends State<PhotoGridView>
                   );
                 },
                 errorWidget: (context, url, error) {
-                  throw PhotoError('Failed to load image', error);
+                  throw PhotoLoadError();
                 },
               ),
             ),
@@ -297,10 +300,7 @@ class _PhotoGridViewState extends State<PhotoGridView>
             try {
               await _loadPhotos();
             } catch (e) {
-              throw PhotoError(
-                'Failed to refresh photos',
-                e,
-              );
+              throw PhotoLoadError();
             }
           },
           child: GridView.builder(

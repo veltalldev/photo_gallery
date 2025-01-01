@@ -3,19 +3,23 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:photo_gallery/widgets/errors/photo_error_boundary.dart';
 import 'package:photo_gallery/features/generation/widgets/generation_bottom_sheet.dart';
 import 'package:photo_gallery/models/domain/photo.dart';
+import 'package:photo_gallery/services/interfaces/i_cache_service.dart';
+import 'package:photo_gallery/services/impl/photo_cache_manager.dart';
 
 class FullScreenPhotoViewer extends StatefulWidget {
   final List<Photo> photos;
   final int initialIndex;
   final bool isGenerating;
-  final Function(String, int, int?)? onGenerateMore;
+  final ICacheService cacheService;
+  final Function(String, int, int?) onGenerateMore;
 
   const FullScreenPhotoViewer({
     super.key,
     required this.photos,
     required this.initialIndex,
-    this.isGenerating = false,
-    this.onGenerateMore,
+    required this.isGenerating,
+    required this.cacheService,
+    required this.onGenerateMore,
   });
 
   @override
@@ -63,6 +67,8 @@ class _FullScreenPhotoViewerState extends State<FullScreenPhotoViewer> {
               child: CircularProgressIndicator(color: Colors.white),
             ),
             errorWidget: (_, __, error) => const SizedBox.shrink(),
+            cacheManager:
+                (widget.cacheService as PhotoCacheManager).cacheManager,
           ),
         ),
       ),
@@ -104,22 +110,18 @@ class _FullScreenPhotoViewerState extends State<FullScreenPhotoViewer> {
                       '${_currentIndex + 1} / ${widget.photos.length}',
                       style: const TextStyle(color: Colors.white, fontSize: 16),
                     ),
-                    if (widget.onGenerateMore != null)
-                      IconButton(
-                        icon:
-                            const Icon(Icons.auto_awesome, color: Colors.white),
-                        onPressed: widget.isGenerating
-                            ? null
-                            : () => showGenerationOptions(
-                                  context,
-                                  onSubmit: (prompt, count, seed) {
-                                    final currentPhoto =
-                                        widget.photos[_currentIndex];
-                                    widget.onGenerateMore!(prompt, count, seed);
-                                  },
-                                  isGenerating: widget.isGenerating,
-                                ),
-                      ),
+                    IconButton(
+                      icon: const Icon(Icons.auto_awesome, color: Colors.white),
+                      onPressed: widget.isGenerating
+                          ? null
+                          : () => showGenerationOptions(
+                                context,
+                                onSubmit: (prompt, count, seed) {
+                                  widget.onGenerateMore(prompt, count, seed);
+                                },
+                                isGenerating: widget.isGenerating,
+                              ),
+                    ),
                   ],
                 ),
               ),

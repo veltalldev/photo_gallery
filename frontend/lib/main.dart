@@ -1,7 +1,6 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:photo_gallery/core/di/service_locator.dart';
-import 'package:photo_gallery/screens/gallery_screen.dart';
 import 'package:photo_gallery/screens/landing_page_screen.dart';
 
 void main() async {
