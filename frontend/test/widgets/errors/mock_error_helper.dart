@@ -23,7 +23,7 @@ class MockServerError extends ServerError {
     required String message,
     String? code,
     required int statusCode,
-  }) : super(message, code, statusCode);
+  }) : super(message: message, code: code, statusCode: statusCode);
 }
 
 class MockValidationError extends ValidationError {
