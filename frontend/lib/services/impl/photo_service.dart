@@ -3,6 +3,7 @@ import '../interfaces/i_photo_service.dart';
 import '../../repositories/interfaces/i_photo_repository.dart';
 import '../../services/interfaces/i_cache_service.dart';
 import '../../models/domain/photo.dart';
+import 'dart:convert';
 
 class PhotoService implements IPhotoService {
   final IPhotoRepository repository;
@@ -19,14 +20,20 @@ class PhotoService implements IPhotoService {
       // Check cache first
       final cached = await cacheService.get('photos');
       if (cached != null) {
-        return (cached as List).map((p) => Photo.fromJson(p)).toList();
+        // Decode the UTF-8 bytes back to a string, then parse as JSON
+        final jsonString = utf8.decode(List<int>.from(cached));
+        final jsonList = jsonDecode(jsonString) as List;
+        return jsonList
+            .map((p) => Photo.fromJson(p as Map<String, dynamic>))
+            .toList();
       }
 
       // Fetch from repository
       final photos = await repository.fetchPhotos();
 
-      // Update cache
-      await cacheService.put('photos', photos.map((p) => p.toJson()).toList());
+      // Convert to JSON string then to UTF-8 bytes before caching
+      final jsonString = jsonEncode(photos.map((p) => p.toJson()).toList());
+      await cacheService.put('photos', utf8.encode(jsonString));
 
       return photos;
     } catch (e) {

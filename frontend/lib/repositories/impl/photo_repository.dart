@@ -9,7 +9,7 @@ class PhotoRepository implements IPhotoRepository {
   final http.Client client;
   final ICacheService cacheService;
   @override
-  final String baseUrl = 'http://192.168.4.26:8000'; // TODO: Move to config
+  final String baseUrl = 'http://47.151.18.30:8000'; // TODO: Move to config
 
   PhotoRepository({
     required this.client,
