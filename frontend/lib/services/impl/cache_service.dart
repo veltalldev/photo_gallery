@@ -1,15 +1,16 @@
 // lib/services/impl/cache_service.dart
 import 'dart:async';
-import 'package:photo_gallery/core/errors/app_error.dart';
 import 'package:photo_gallery/services/interfaces/i_cache_service.dart';
-import 'package:photo_gallery/services/photo_cache_manager.dart';
+import 'package:photo_gallery/services/interfaces/i_photo_cache_manager.dart';
+import 'package:photo_gallery/services/impl/photo_cache_manager.dart';
+import 'package:photo_gallery/core/errors/cache_error.dart';
 
 class CacheService implements ICacheService {
-  final PhotoCacheManager _cacheManager;
+  final IPhotoCacheManager _cacheManager;
   final StreamController<CacheStats> _statsController;
   final Map<String, Completer<void>> _ongoingOperations;
 
-  CacheService({PhotoCacheManager? cacheManager})
+  CacheService({IPhotoCacheManager? cacheManager})
       : _cacheManager = cacheManager ?? PhotoCacheManager(),
         _statsController = StreamController<CacheStats>.broadcast(),
         _ongoingOperations = {};
@@ -25,12 +26,7 @@ class CacheService implements ICacheService {
       final completer = Completer<void>();
       _ongoingOperations[key] = completer;
 
-      await _cacheManager.putFile(
-        key,
-        data,
-        maxAge: maxAge ?? const Duration(days: 7),
-      );
-
+      await _cacheManager.put(key, data, maxAge: maxAge);
       _emitStats(
         CacheOperation.write,
         key: key,
@@ -38,8 +34,8 @@ class CacheService implements ICacheService {
       );
 
       completer.complete();
-    } catch (e, stackTrace) {
-      throw CacheError('Failed to store data in cache', e);
+    } catch (e) {
+      throw CacheError('Failed to store data in cache');
     } finally {
       _ongoingOperations.remove(key);
     }
@@ -52,19 +48,17 @@ class CacheService implements ICacheService {
         await _ongoingOperations[key]!.future;
       }
 
-      final file = await _cacheManager.getFileFromCache(key);
-      if (file == null) return null;
-
-      final data = await file.file.readAsBytes();
-      _emitStats(
-        CacheOperation.read,
-        key: key,
-        dataSizeBytes: data.length,
-      );
-
-      return data as T;
+      final data = await _cacheManager.get<T>(key);
+      if (data != null) {
+        _emitStats(
+          CacheOperation.read,
+          key: key,
+          dataSizeBytes: _calculateDataSize(data),
+        );
+      }
+      return data;
     } catch (e) {
-      throw CacheError('Failed to retrieve data from cache', e);
+      throw CacheError('Failed to retrieve data from cache');
     }
   }
 
@@ -75,10 +69,10 @@ class CacheService implements ICacheService {
         await _ongoingOperations[key]!.future;
       }
 
-      await _cacheManager.removeFile(key);
+      await _cacheManager.remove(key);
       _emitStats(CacheOperation.delete, key: key);
     } catch (e) {
-      throw CacheError('Failed to remove data from cache', e);
+      throw CacheError('Failed to remove data from cache');
     }
   }
 
@@ -89,10 +83,10 @@ class CacheService implements ICacheService {
         await Future.wait(_ongoingOperations.values.map((c) => c.future));
       }
 
-      await _cacheManager.emptyCache();
+      await _cacheManager.clear();
       _emitStats(CacheOperation.clear);
     } catch (e) {
-      throw CacheError('Failed to clear cache', e);
+      throw CacheError('Failed to clear cache');
     }
   }
 
@@ -103,10 +97,9 @@ class CacheService implements ICacheService {
         await _ongoingOperations[key]!.future;
       }
 
-      final file = await _cacheManager.getFileFromCache(key);
-      return file != null;
+      return await _cacheManager.containsKey(key);
     } catch (e) {
-      throw CacheError('Failed to check cache', e);
+      throw CacheError('Failed to check cache');
     }
   }
 

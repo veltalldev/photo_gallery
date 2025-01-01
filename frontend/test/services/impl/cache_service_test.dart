@@ -6,26 +6,28 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:mockito/annotations.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
-import 'package:photo_gallery/core/errors/app_error.dart';
+import 'package:photo_gallery/core/errors/cache_error.dart';
 import 'package:photo_gallery/services/impl/cache_service.dart';
 import 'package:photo_gallery/services/interfaces/i_cache_service.dart';
-import 'package:photo_gallery/services/photo_cache_manager.dart';
+import 'package:photo_gallery/services/interfaces/i_photo_cache_manager.dart';
 
 // Generate mocks
-@GenerateNiceMocks([MockSpec<PhotoCacheManager>()])
-@GenerateNiceMocks([MockSpec<files.File>()])
-@GenerateNiceMocks([MockSpec<FileInfo>()])
+@GenerateNiceMocks([
+  MockSpec<IPhotoCacheManager>(),
+  MockSpec<files.File>(),
+  MockSpec<FileInfo>(),
+])
 import 'cache_service_test.mocks.dart';
 
 void main() {
   late CacheService cacheService;
-  late MockPhotoCacheManager mockCacheManager;
+  late MockIPhotoCacheManager mockCacheManager;
   late files.File mockFile;
   late FileInfo mockFileInfo;
   late Uint8List testData;
 
   setUp(() {
-    mockCacheManager = MockPhotoCacheManager();
+    mockCacheManager = MockIPhotoCacheManager();
     mockFile = MockFile() as files.File;
     mockFileInfo = MockFileInfo();
     testData = Uint8List.fromList([1, 2, 3]);
@@ -42,7 +44,7 @@ void main() {
       const key = 'test_key';
 
       // Use thenAnswer for async operations
-      when(mockCacheManager.putFile(
+      when(mockCacheManager.put(
         any,
         any,
         maxAge: anyNamed('maxAge'),
@@ -52,7 +54,7 @@ void main() {
       await cacheService.put(key, testData);
 
       // Assert
-      verify(mockCacheManager.putFile(
+      verify(mockCacheManager.put(
         key,
         testData,
         maxAge: anyNamed('maxAge'),
@@ -62,11 +64,34 @@ void main() {
     test('should throw CacheError when storage fails', () async {
       // Arrange
       const key = 'test_key';
-      when(mockCacheManager.putFile(
+      when(mockCacheManager.put(
         any,
         any,
         maxAge: anyNamed('maxAge'),
       )).thenThrow(Exception('Storage failed'));
+
+      // Act & Assert
+      expect(
+        () => cacheService.put(key, testData),
+        throwsA(isA<CacheError>()),
+      );
+    });
+
+    test('should throw CacheError when data is empty', () async {
+      // Arrange
+      const key = 'test_key';
+      final emptyData = Uint8List(0);
+
+      // Act & Assert
+      expect(
+        () => cacheService.put(key, emptyData),
+        throwsA(isA<CacheError>()),
+      );
+    });
+
+    test('should throw CacheError when key is empty', () async {
+      // Arrange
+      const key = '';
 
       // Act & Assert
       expect(
@@ -80,25 +105,24 @@ void main() {
     test('should retrieve stored data successfully', () async {
       // Arrange
       const key = 'test_key';
-      when(mockCacheManager.getFileFromCache(any))
-          .thenAnswer((_) async => mockFileInfo);
+      when(mockCacheManager.get<Uint8List>(any))
+          .thenAnswer((_) async => testData);
 
       // Act
       final result = await cacheService.get<Uint8List>(key);
 
       // Assert
       expect(result, equals(testData));
-      verify(mockCacheManager.getFileFromCache(key)).called(1);
+      verify(mockCacheManager.get<Uint8List>(key)).called(1);
     });
 
     test('should return null when key not found', () async {
       // Arrange
       const key = 'nonexistent_key';
-      when(mockCacheManager.getFileFromCache(any))
-          .thenAnswer((_) async => null);
+      when(mockCacheManager.get<Uint8List>(any)).thenAnswer((_) async => null);
 
       // Act
-      final result = await cacheService.get(key);
+      final result = await cacheService.get<Uint8List>(key);
 
       // Assert
       expect(result, isNull);
@@ -106,13 +130,28 @@ void main() {
     test('should throw CacheError when retrieval fails', () async {
       // Arrange
       const key = 'test_key';
-      when(mockCacheManager.getFileFromCache(any))
+      when(mockCacheManager.get<Uint8List>(any))
           .thenThrow(Exception('Retrieval failed'));
 
       // Act & Assert
       expect(
-        () => cacheService.get(key),
+        () => cacheService.get<Uint8List>(key),
         throwsA(isA<CacheError>()),
+      );
+    });
+
+    test('should include original error message in CacheError', () async {
+      // Arrange
+      const key = 'test_key';
+      const errorMessage = 'Retrieval failed';
+      when(mockCacheManager.get<Uint8List>(any))
+          .thenThrow(Exception(errorMessage));
+
+      // Act & Assert
+      expect(
+        () => cacheService.get<Uint8List>(key),
+        throwsA(predicate(
+            (e) => e is CacheError && e.toString().contains(errorMessage))),
       );
     });
   });
@@ -121,20 +160,19 @@ void main() {
     test('should remove data successfully', () async {
       // Arrange
       const key = 'test_key';
-      when(mockCacheManager.removeFile(any)).thenAnswer((_) async => true);
+      when(mockCacheManager.remove(any)).thenAnswer((_) async {});
 
       // Act
       await cacheService.remove(key);
 
       // Assert
-      verify(mockCacheManager.removeFile(key)).called(1);
+      verify(mockCacheManager.remove(key)).called(1);
     });
 
     test('should throw CacheError when removal fails', () async {
       // Arrange
       const key = 'test_key';
-      when(mockCacheManager.removeFile(any))
-          .thenThrow(Exception('Removal failed'));
+      when(mockCacheManager.remove(any)).thenThrow(Exception('Removal failed'));
 
       // Act & Assert
       expect(
@@ -147,18 +185,18 @@ void main() {
   group('clear', () {
     test('should clear all data successfully', () async {
       // Arrange
-      when(mockCacheManager.emptyCache()).thenAnswer((_) async => true);
+      when(mockCacheManager.clear()).thenAnswer((_) async {});
 
       // Act
       await cacheService.clear();
 
       // Assert
-      verify(mockCacheManager.emptyCache()).called(1);
+      verify(mockCacheManager.clear()).called(1);
     });
 
     test('should throw CacheError when clear fails', () async {
       // Arrange
-      when(mockCacheManager.emptyCache()).thenThrow(Exception('Clear failed'));
+      when(mockCacheManager.clear()).thenThrow(Exception('Clear failed'));
 
       // Act & Assert
       expect(
@@ -172,8 +210,7 @@ void main() {
     test('should return true for existing key', () async {
       // Arrange
       const key = 'test_key';
-      when(mockCacheManager.getFileFromCache(any))
-          .thenAnswer((_) async => mockFileInfo);
+      when(mockCacheManager.containsKey(any)).thenAnswer((_) async => true);
 
       // Act
       final result = await cacheService.containsKey(key);
@@ -185,8 +222,7 @@ void main() {
     test('should return false for non-existing key', () async {
       // Arrange
       const key = 'nonexistent_key';
-      when(mockCacheManager.getFileFromCache(any))
-          .thenAnswer((_) async => null);
+      when(mockCacheManager.containsKey(any)).thenAnswer((_) async => false);
 
       // Act
       final result = await cacheService.containsKey(key);
@@ -200,7 +236,7 @@ void main() {
     test('should emit stats for cache operations', () async {
       // Arrange
       const key = 'test_key';
-      when(mockCacheManager.putFile(
+      when(mockCacheManager.put(
         any,
         any,
         maxAge: anyNamed('maxAge'),
@@ -218,6 +254,16 @@ void main() {
       );
 
       await cacheService.put(key, testData);
+    });
+
+    test('should complete stats stream when cache service is disposed', () {
+      // Act & Assert
+      expectLater(
+        cacheService.stats,
+        emitsDone,
+      );
+
+      cacheService.dispose();
     });
   });
 }

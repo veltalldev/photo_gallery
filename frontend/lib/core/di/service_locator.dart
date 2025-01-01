@@ -8,7 +8,8 @@ import '../../repositories/impl/photo_repository.dart';
 import '../../services/interfaces/i_photo_service.dart';
 import '../../services/impl/photo_service.dart';
 import '../../services/interfaces/i_cache_service.dart';
-import '../../services/impl/cache_service.dart';
+import '../../services/interfaces/i_photo_cache_manager.dart';
+import '../../services/impl/photo_cache_manager.dart';
 
 final GetIt serviceLocator = GetIt.instance;
 
@@ -18,9 +19,12 @@ Future<void> setupServiceLocator() async {
     () => http.Client(),
   );
 
-  // Cache Service
+  // Cache Services
+  serviceLocator.registerLazySingleton<IPhotoCacheManager>(
+    () => PhotoCacheManager(),
+  );
   serviceLocator.registerLazySingleton<ICacheService>(
-    () => CacheService(),
+    () => serviceLocator<IPhotoCacheManager>(),
   );
 
   // Repositories
