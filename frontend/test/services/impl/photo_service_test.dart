@@ -2,7 +2,8 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
-import 'package:photo_gallery/models/domain/photo.dart';
+import 'package:photo_gallery/core/errors/cache_error.dart';
+import 'package:photo_gallery/core/errors/photo_error.dart';
 import 'package:photo_gallery/services/impl/photo_service.dart';
 import 'package:photo_gallery/core/errors/app_error.dart';
 import '../../helpers/mock_helpers.dart';
@@ -21,8 +22,8 @@ void main() {
       cacheService: mockCacheService,
     );
 
-    // Set up default base URL
-    when(mockPhotoRepository.baseUrl).thenReturn('http://localhost:8000');
+    // Use TestData constant instead of hardcoded value
+    when(mockPhotoRepository.baseUrl).thenReturn(TestData.baseUrl);
   });
 
   group('getPhotos', () {
@@ -61,17 +62,45 @@ void main() {
       )).called(1);
     });
 
-    test('should throw exception when both cache and fetch fail', () async {
+    test('should throw AppError when both cache and fetch fail', () async {
       // Arrange
-      when(mockCacheService.get('photos')).thenThrow(Exception('Cache error'));
+      when(mockCacheService.get('photos')).thenThrow(CacheError('Cache error'));
       when(mockPhotoRepository.fetchPhotos())
-          .thenThrow(Exception('Network error'));
+          .thenThrow(PhotoLoadError(message: 'Network error'));
 
       // Act & Assert
       expect(
         () => photoService.getPhotos(),
-        throwsA(isA<Exception>()),
+        throwsA(isA<PhotoLoadError>()),
       );
+    });
+  });
+
+  group('getPhoto', () {
+    test('should return photo when found', () async {
+      // Arrange
+      final mockPhoto = TestData.getMockPhoto(id: 'test_id');
+      when(mockPhotoRepository.fetchPhoto('test_id'))
+          .thenAnswer((_) async => mockPhoto);
+
+      // Act
+      final result = await photoService.getPhoto('test_id');
+
+      // Assert
+      expect(result, equals(mockPhoto));
+      verify(mockPhotoRepository.fetchPhoto('test_id')).called(1);
+    });
+
+    test('should return null when photo not found', () async {
+      // Arrange
+      when(mockPhotoRepository.fetchPhoto('non_existent'))
+          .thenAnswer((_) async => null);
+
+      // Act
+      final result = await photoService.getPhoto('non_existent');
+
+      // Assert
+      expect(result, isNull);
     });
   });
 
@@ -88,7 +117,7 @@ void main() {
       verify(mockCacheService.remove('photos')).called(1);
     });
 
-    test('should throw exception when delete fails', () async {
+    test('should throw AppError when delete fails', () async {
       // Arrange
       const photoId = 'test_photo_1';
       when(mockPhotoRepository.deletePhoto(photoId))
@@ -97,8 +126,65 @@ void main() {
       // Act & Assert
       expect(
         () => photoService.deletePhoto(photoId),
-        throwsA(isA<Exception>()),
+        throwsA(isA<AppError>()),
       );
+    });
+  });
+
+  group('refreshPhotos', () {
+    test('should fetch fresh photos and update cache', () async {
+      // Arrange
+      final mockPhotos = TestData.getMockPhotos();
+      when(mockPhotoRepository.fetchPhotos())
+          .thenAnswer((_) async => mockPhotos);
+
+      // Act
+      await photoService.refreshPhotos();
+
+      // Assert
+      verify(mockPhotoRepository.fetchPhotos()).called(1);
+      verify(mockCacheService.put(
+        'photos',
+        mockPhotos.map((p) => p.toJson()).toList(),
+      )).called(1);
+    });
+
+    test('should throw AppError when refresh fails', () async {
+      // Arrange
+      when(mockPhotoRepository.fetchPhotos())
+          .thenThrow(Exception('Network error'));
+
+      // Act & Assert
+      expect(
+        () => photoService.refreshPhotos(),
+        throwsA(isA<AppError>()),
+      );
+    });
+  });
+
+  group('URL generation', () {
+    test('should generate correct thumbnail URL', () {
+      // Arrange
+      const filename = 'test.jpg';
+      const expected = '${TestData.baseUrl}${TestData.thumbnailPath}/test.jpg';
+
+      // Act
+      final result = photoService.getThumbnailUrl(filename);
+
+      // Assert
+      expect(result, equals(expected));
+    });
+
+    test('should generate correct full photo URL', () {
+      // Arrange
+      const filename = 'test.jpg';
+      const expected = '${TestData.baseUrl}${TestData.photosPath}/test.jpg';
+
+      // Act
+      final result = photoService.getPhotoUrl(filename);
+
+      // Assert
+      expect(result, equals(expected));
     });
   });
 
@@ -128,7 +214,7 @@ void main() {
       verify(mockCacheService.remove('photos')).called(1);
     });
 
-    test('should throw exception when generation fails', () async {
+    test('should throw AppError when generation fails', () async {
       // Arrange
       when(mockPhotoRepository.generatePhotos(
         sourcePhoto: any,
@@ -144,34 +230,8 @@ void main() {
           additionalPrompt: '',
           count: 1,
         ),
-        throwsA(isA<Exception>()),
+        throwsA(isA<AppError>()),
       );
-    });
-  });
-
-  group('URL generation', () {
-    test('should generate correct thumbnail URL', () {
-      // Arrange
-      const filename = 'test.jpg';
-      const expected = 'http://localhost:8000/photos/thumbnail/test.jpg';
-
-      // Act
-      final result = photoService.getThumbnailUrl(filename);
-
-      // Assert
-      expect(result, equals(expected));
-    });
-
-    test('should generate correct full photo URL', () {
-      // Arrange
-      const filename = 'test.jpg';
-      const expected = 'http://localhost:8000/photos/test.jpg';
-
-      // Act
-      final result = photoService.getPhotoUrl(filename);
-
-      // Assert
-      expect(result, equals(expected));
     });
   });
 }

@@ -3,17 +3,16 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:http/http.dart' as http;
-import 'package:photo_gallery/models/domain/photo.dart';
+import 'package:photo_gallery/core/errors/photo_error.dart';
 import 'package:photo_gallery/repositories/impl/photo_repository.dart';
-import 'package:photo_gallery/core/errors/app_error.dart';
-import '../../helpers/mock_helpers.dart';
 import '../../helpers/mock_helpers.mocks.dart';
+import 'mock_repository_helper.dart';
 
 void main() {
   late MockHttpClient mockHttpClient;
   late MockICacheService mockCacheService;
   late PhotoRepository photoRepository;
-  const baseUrl = 'http://localhost:8000';
+  const baseUrl = 'http://47.151.18.30:8000';
 
   setUp(() {
     mockHttpClient = MockHttpClient();
@@ -56,19 +55,15 @@ void main() {
       expect(photos, isEmpty);
     });
 
-    test('should throw exception on network error', () async {
+    test('should throw PhotoError on network error', () async {
       // Arrange
       when(mockHttpClient.get(Uri.parse('$baseUrl/api/photos')))
-          .thenThrow(Exception('Network error'));
+          .thenThrow(MockRepositoryHelper.getMockPhotoError('Network error'));
 
       // Act & Assert
       expect(
         () => photoRepository.fetchPhotos(),
-        throwsA(isA<Exception>().having(
-          (e) => e.toString(),
-          'message',
-          contains('Error loading photos'),
-        )),
+        throwsA(isA<PhotoLoadError>()),
       );
     });
 
