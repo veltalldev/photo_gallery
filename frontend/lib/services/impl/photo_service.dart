@@ -22,26 +22,20 @@ class PhotoService implements IPhotoService {
   Future<List<Photo>> getPhotos() async {
     try {
       // Check cache first
-      final cached = await cacheService.get<List<int>>('photos');
-      if (cached != null) {
-        debugPrint('Cache hit: decoding photos');
-        try {
-          // Decode the UTF-8 bytes back to a string
-          final jsonString = utf8.decode(Uint8List.fromList(cached));
-          // Parse the JSON string into a List<dynamic>
-          final jsonList = jsonDecode(jsonString) as List<dynamic>;
-          // Convert each map to a Photo object
-          return jsonList
-              .map((p) => Photo.fromJson(p as Map<String, dynamic>))
-              .toList();
-        } catch (e) {
-          debugPrint('Cache decode error: $e');
-          // If we can't decode the cache, fetch fresh data
-          return _fetchAndCachePhotos();
-        }
+      final cachedPhotos = await _getCachedPhotos();
+      if (cachedPhotos != null) {
+        debugPrint('Returning cached photos');
+        return cachedPhotos;
       }
 
-      return _fetchAndCachePhotos();
+      debugPrint('Cache miss: fetching fresh photos');
+      // If not in cache, fetch from repository
+      final photos = await repository.fetchPhotos();
+
+      // Cache the new results
+      await cacheService.put('photos', photos.map((p) => p.toJson()).toList());
+
+      return photos;
     } catch (e) {
       throw Exception('Failed to get photos: $e');
     }
