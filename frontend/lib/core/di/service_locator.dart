@@ -1,14 +1,15 @@
 // lib/core/di/service_locator.dart
 
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:get_it/get_it.dart';
 import 'package:http/http.dart' as http;
+import 'package:photo_gallery/services/impl/cache_service.dart';
 
 import '../../repositories/interfaces/i_photo_repository.dart';
 import '../../repositories/impl/photo_repository.dart';
 import '../../services/interfaces/i_photo_service.dart';
 import '../../services/impl/photo_service.dart';
 import '../../services/interfaces/i_cache_service.dart';
-import '../../services/interfaces/i_photo_cache_manager.dart';
 import '../../services/impl/photo_cache_manager.dart';
 
 final GetIt serviceLocator = GetIt.instance;
@@ -20,11 +21,14 @@ Future<void> setupServiceLocator() async {
   );
 
   // Cache Services
-  serviceLocator.registerLazySingleton<IPhotoCacheManager>(
-    () => PhotoCacheManager(),
-  );
   serviceLocator.registerLazySingleton<ICacheService>(
-    () => serviceLocator<IPhotoCacheManager>(),
+    () => CacheService(cacheManager: DefaultCacheManager()),
+  );
+
+  serviceLocator.registerLazySingleton<PhotoCacheManager>(
+    () => PhotoCacheManager(
+      baseCache: serviceLocator<ICacheService>(),
+    ),
   );
 
   // Repositories

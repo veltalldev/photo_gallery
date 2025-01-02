@@ -1,133 +1,69 @@
 // lib/services/impl/cache_service.dart
-import 'dart:async';
-import 'package:photo_gallery/services/interfaces/i_cache_service.dart';
-import 'package:photo_gallery/services/interfaces/i_photo_cache_manager.dart';
-import 'package:photo_gallery/services/impl/photo_cache_manager.dart';
+import 'dart:convert';
+import 'dart:typed_data';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:photo_gallery/core/errors/cache_error.dart';
+import 'package:photo_gallery/services/interfaces/i_cache_service.dart';
 
 class CacheService implements ICacheService {
-  final IPhotoCacheManager _cacheManager;
-  final StreamController<CacheStats> _statsController;
-  final Map<String, Completer<void>> _ongoingOperations;
+  final DefaultCacheManager _cacheManager;
 
-  CacheService({IPhotoCacheManager? cacheManager})
-      : _cacheManager = cacheManager ?? PhotoCacheManager(),
-        _statsController = StreamController<CacheStats>.broadcast(),
-        _ongoingOperations = {};
+  CacheService({required DefaultCacheManager cacheManager})
+      : _cacheManager = cacheManager;
 
   @override
   Future<void> put(String key, dynamic data, {Duration? maxAge}) async {
     try {
-      if (_ongoingOperations.containsKey(key)) {
-        await _ongoingOperations[key]!.future;
-        return;
-      }
-
-      final completer = Completer<void>();
-      _ongoingOperations[key] = completer;
-
-      await _cacheManager.put(key, data, maxAge: maxAge);
-      _emitStats(
-        CacheOperation.write,
-        key: key,
-        dataSizeBytes: _calculateDataSize(data),
+      final bytes = utf8.encode(json.encode(data));
+      await _cacheManager.putFile(
+        key,
+        Uint8List.fromList(bytes),
+        maxAge: maxAge ?? const Duration(days: 7),
       );
-
-      completer.complete();
     } catch (e) {
-      throw CacheError('Failed to store data in cache');
-    } finally {
-      _ongoingOperations.remove(key);
+      throw CacheError('Failed to store data: $e');
     }
   }
 
   @override
   Future<T?> get<T>(String key) async {
     try {
-      if (_ongoingOperations.containsKey(key)) {
-        await _ongoingOperations[key]!.future;
-      }
+      final file = await _cacheManager.getFileFromCache(key);
+      if (file == null) return null;
 
-      final data = await _cacheManager.get<T>(key);
-      if (data != null) {
-        _emitStats(
-          CacheOperation.read,
-          key: key,
-          dataSizeBytes: _calculateDataSize(data),
-        );
-      }
-      return data;
+      final bytes = await file.file.readAsBytes();
+      final data = json.decode(utf8.decode(bytes));
+      return data as T;
     } catch (e) {
-      throw CacheError('Failed to retrieve data from cache');
+      throw CacheError('Failed to retrieve data: $e');
     }
   }
 
   @override
   Future<void> remove(String key) async {
     try {
-      if (_ongoingOperations.containsKey(key)) {
-        await _ongoingOperations[key]!.future;
-      }
-
-      await _cacheManager.remove(key);
-      _emitStats(CacheOperation.delete, key: key);
+      await _cacheManager.removeFile(key);
     } catch (e) {
-      throw CacheError('Failed to remove data from cache');
+      throw CacheError('Failed to remove data: $e');
     }
   }
 
   @override
   Future<void> clear() async {
     try {
-      if (_ongoingOperations.isNotEmpty) {
-        await Future.wait(_ongoingOperations.values.map((c) => c.future));
-      }
-
-      await _cacheManager.clear();
-      _emitStats(CacheOperation.clear);
+      await _cacheManager.emptyCache();
     } catch (e) {
-      throw CacheError('Failed to clear cache');
+      throw CacheError('Failed to clear cache: $e');
     }
   }
 
   @override
   Future<bool> containsKey(String key) async {
     try {
-      if (_ongoingOperations.containsKey(key)) {
-        await _ongoingOperations[key]!.future;
-      }
-
-      return await _cacheManager.containsKey(key);
+      final file = await _cacheManager.getFileFromCache(key);
+      return file != null;
     } catch (e) {
-      throw CacheError('Failed to check cache');
+      throw CacheError('Failed to check cache: $e');
     }
-  }
-
-  @override
-  Stream<CacheStats> get stats => _statsController.stream;
-
-  void _emitStats(
-    CacheOperation operation, {
-    String? key,
-    int? dataSizeBytes,
-  }) {
-    _statsController.add(CacheStats(
-      timestamp: DateTime.now(),
-      operation: operation,
-      key: key,
-      dataSizeBytes: dataSizeBytes,
-    ));
-  }
-
-  int? _calculateDataSize(dynamic data) {
-    if (data is List<int>) {
-      return data.length;
-    }
-    return null;
-  }
-
-  @override
-  void dispose() {
-    _statsController.close();
   }
 }
