@@ -85,15 +85,9 @@ class PhotoCacheManager implements ICacheService {
       final data = await _baseCache.get<T>(key);
       if (data == null) return null;
 
-      // Verify image integrity
-      if (data is List<int> && !_isValidImageData(data)) {
-        await remove(key);
-        return null;
-      }
-
-      // Cache thumbnails in memory when retrieved
-      if (key.endsWith('.thumb') && data is List<int>) {
-        _memoryCache[key] = Uint8List.fromList(data);
+      // Ensure we return Uint8List for image data
+      if (data is List<int>) {
+        return Uint8List.fromList(data) as T;
       }
 
       return data;

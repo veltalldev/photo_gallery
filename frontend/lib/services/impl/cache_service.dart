@@ -14,7 +14,10 @@ class CacheService implements ICacheService {
   @override
   Future<void> put(String key, dynamic data, {Duration? maxAge}) async {
     try {
-      final bytes = utf8.encode(json.encode(data));
+      final bytes = data is List<int>
+          ? data // Store binary data directly
+          : utf8.encode(json.encode(data)); // JSON encode other data
+
       await _cacheManager.putFile(
         key,
         Uint8List.fromList(bytes),
@@ -32,6 +35,13 @@ class CacheService implements ICacheService {
       if (file == null) return null;
 
       final bytes = await file.file.readAsBytes();
+
+      // If we're expecting binary data (List<int> or Uint8List), return it directly
+      if (T == (List<int>) || T == Uint8List) {
+        return bytes as T;
+      }
+
+      // Otherwise, try to decode as JSON
       final data = json.decode(utf8.decode(bytes));
       return data as T;
     } catch (e) {

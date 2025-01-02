@@ -17,8 +17,12 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Photo Gallery',
       theme: ThemeData(
-        primarySwatch: Colors.green,
         useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.green,
+          // Optional: customize brightness
+          brightness: Brightness.light,
+        ),
       ),
       home: const LandingPageScreen(),
     );

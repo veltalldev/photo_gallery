@@ -1,6 +1,7 @@
 // lib/services/impl/photo_service.dart
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
-import 'package:photo_gallery/core/errors/photo_error.dart';
 
 import '../interfaces/i_photo_service.dart';
 import '../../repositories/interfaces/i_photo_repository.dart';
@@ -20,17 +21,29 @@ class PhotoService implements IPhotoService {
   @override
   Future<List<Photo>> getPhotos() async {
     try {
-      debugPrint('PhotoService: Getting photos...');
-      final cachedPhotos = await _getCachedPhotos();
-      if (cachedPhotos != null) {
-        return cachedPhotos;
+      // Check cache first
+      final cached = await cacheService.get<List<int>>('photos');
+      if (cached != null) {
+        debugPrint('Cache hit: decoding photos');
+        try {
+          // Decode the UTF-8 bytes back to a string
+          final jsonString = utf8.decode(Uint8List.fromList(cached));
+          // Parse the JSON string into a List<dynamic>
+          final jsonList = jsonDecode(jsonString) as List<dynamic>;
+          // Convert each map to a Photo object
+          return jsonList
+              .map((p) => Photo.fromJson(p as Map<String, dynamic>))
+              .toList();
+        } catch (e) {
+          debugPrint('Cache decode error: $e');
+          // If we can't decode the cache, fetch fresh data
+          return _fetchAndCachePhotos();
+        }
       }
-      return await _fetchAndCachePhotos();
+
+      return _fetchAndCachePhotos();
     } catch (e) {
-      debugPrint('PhotoService error: $e');
-      throw PhotoLoadError(
-        message: 'Failed to load photos: $e',
-      );
+      throw Exception('Failed to get photos: $e');
     }
   }
 
@@ -76,9 +89,6 @@ class PhotoService implements IPhotoService {
         count: count,
         seed: seed,
       );
-
-      // Invalidate cache since new photos were generated
-      await cacheService.remove('photos');
     } catch (e) {
       throw Exception('Failed to generate photos: $e');
     }
@@ -114,8 +124,10 @@ class PhotoService implements IPhotoService {
     final photos = await repository.fetchPhotos();
 
     try {
+      // Convert photos to JSON
       final jsonString = jsonEncode(photos.map((p) => p.toJson()).toList());
-      await cacheService.put('photos', utf8.encode(jsonString));
+      // Convert JSON string to UTF-8 bytes and store
+      await cacheService.put('photos', utf8.encode(jsonString).toList());
     } catch (e) {
       debugPrint('Cache store error: $e');
       // Continue even if caching fails
@@ -123,4 +135,7 @@ class PhotoService implements IPhotoService {
 
     return photos;
   }
+
+  @override
+  ICacheService getCacheService() => cacheService;
 }

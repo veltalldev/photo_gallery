@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:photo_gallery/widgets/errors/photo_error_boundary.dart';
 import 'package:photo_gallery/features/generation/widgets/generation_bottom_sheet.dart';
 import 'package:photo_gallery/models/domain/photo.dart';
-import 'package:photo_gallery/services/interfaces/i_cache_service.dart';
-import 'package:photo_gallery/services/impl/photo_cache_manager.dart';
+import 'package:photo_gallery/services/interfaces/i_photo_service.dart';
+import 'package:photo_gallery/core/errors/photo_error.dart';
+import 'package:photo_gallery/widgets/image_providers/photo_cache_image_provider.dart';
 
 class FullScreenPhotoViewer extends StatefulWidget {
   final List<Photo> photos;
   final int initialIndex;
   final bool isGenerating;
-  final ICacheService cacheService;
+  final IPhotoService photoService;
   final Function(String, int, int?) onGenerateMore;
 
   const FullScreenPhotoViewer({
@@ -18,7 +18,7 @@ class FullScreenPhotoViewer extends StatefulWidget {
     required this.photos,
     required this.initialIndex,
     required this.isGenerating,
-    required this.cacheService,
+    required this.photoService,
     required this.onGenerateMore,
   });
 
@@ -59,16 +59,22 @@ class _FullScreenPhotoViewerState extends State<FullScreenPhotoViewer> {
       onRetry: _retryLoadImage,
       child: InteractiveViewer(
         child: Hero(
-          tag: photo.id, // Using photo.id for Hero tag
-          child: CachedNetworkImage(
-            imageUrl: photo.fullImageUrl!,
-            fit: BoxFit.contain,
-            placeholder: (context, url) => const Center(
-              child: CircularProgressIndicator(color: Colors.white),
+          tag: photo.id,
+          child: Image(
+            image: PhotoCacheImageProvider(
+              url: photo.fullImageUrl!,
+              cacheService: widget.photoService.getCacheService(),
             ),
-            errorWidget: (_, __, error) => const SizedBox.shrink(),
-            cacheManager:
-                (widget.cacheService as PhotoCacheManager).cacheManager,
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) {
+              throw PhotoLoadError();
+            },
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return const Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              );
+            },
           ),
         ),
       ),

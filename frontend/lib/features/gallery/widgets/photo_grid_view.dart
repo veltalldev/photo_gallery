@@ -1,323 +1,259 @@
-import 'dart:collection';
-
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-
-import 'package:photo_gallery/core/errors/photo_error.dart';
-import 'package:photo_gallery/features/viewer/widgets/full_screen_photo_viewer.dart';
 import 'package:photo_gallery/models/domain/photo.dart';
 import 'package:photo_gallery/services/interfaces/i_photo_service.dart';
-import 'package:photo_gallery/services/impl/photo_cache_manager.dart';
-import 'package:photo_gallery/widgets/errors/photo_error_boundary.dart';
-import 'package:photo_gallery/services/interfaces/i_cache_service.dart';
+import 'package:photo_gallery/widgets/common/gradient_scaffold.dart';
+import 'package:photo_gallery/widgets/image_providers/photo_cache_image_provider.dart';
 
-class PhotoGridView extends StatefulWidget {
+class PhotoGridView extends StatelessWidget {
+  final List<Photo> photos;
   final IPhotoService photoService;
-  final ICacheService cacheService;
+  final Function(Photo) onPhotoTap;
+  final Future<void> Function() onRefresh;
+
+  // Breakpoints for responsive design
+  static const double _narrowScreenWidth = 600;
+  static const double _wideScreenWidth = 900;
 
   const PhotoGridView({
     super.key,
+    required this.photos,
     required this.photoService,
-    required this.cacheService,
+    required this.onPhotoTap,
+    required this.onRefresh,
   });
 
-  @override
-  State<PhotoGridView> createState() => _PhotoGridViewState();
-}
-
-class _PhotoGridViewState extends State<PhotoGridView>
-    with AutomaticKeepAliveClientMixin {
-  List<Photo> _photos = [];
-  bool _isGenerating = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadPhotos();
-  }
-
-  @override
-  void dispose() {
-    _imageCache.clear();
-    super.dispose();
-  }
-
-  @override
-  bool get wantKeepAlive => true;
-
-  final int maxCachedImages = 100; // Cache limit (~36MB for WebP thumbnails)
-  final LinkedHashMap<Photo, ImageProvider> _imageCache = LinkedHashMap();
-  final Set<Photo> _selectedPhotos = {};
-  bool _isSelectionMode = false;
-
-  String _getThumbnailUrl(Photo photo) {
-    return widget.photoService.getThumbnailUrl(photo.filename);
-  }
-
-  ImageProvider _getImageProvider(Photo photo) {
-    if (_imageCache.containsKey(photo)) {
-      final provider = _imageCache.remove(photo)!;
-      _imageCache[photo] = provider;
-      return provider;
+  int _calculateColumnCount(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    if (width < _narrowScreenWidth) {
+      return 2; // Phone
+    } else if (width < _wideScreenWidth) {
+      return 3; // Tablet/Small Desktop
+    } else {
+      return 4; // Large Desktop
     }
-
-    final provider = CachedNetworkImageProvider(
-      _getThumbnailUrl(photo),
-      cacheManager: (widget.cacheService as PhotoCacheManager).cacheManager,
-    );
-
-    if (_imageCache.length >= maxCachedImages) {
-      _imageCache.remove(_imageCache.keys.first);
-    }
-    _imageCache[photo] = provider;
-    return provider;
-  }
-
-  Future<void> _triggerMoreLikeThis(
-    String additionalPrompt,
-    int count,
-    int? seed,
-    Photo photo,
-  ) async {
-    if (_isGenerating) return;
-
-    setState(() {
-      _isGenerating = true;
-    });
-
-    try {
-      await widget.photoService.generateMoreLikeThis(
-        sourcePhoto: photo.id,
-        additionalPrompt: additionalPrompt,
-        count: count,
-        seed: seed,
-      );
-
-      // Estimate completion time (30 seconds per image)
-      final waitTime = count * 15;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content:
-              Text('Generation started! Estimated time: $waitTime seconds'),
-          duration: const Duration(seconds: 5),
-        ),
-      );
-
-      // Optional: Refresh after estimated completion
-      Future.delayed(Duration(seconds: waitTime), () {
-        _loadPhotos();
-      });
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
-    } finally {
-      setState(() {
-        _isGenerating = false;
-      });
-    }
-  }
-
-  Future<void> _loadPhotos() async {
-    try {
-      debugPrint('Loading photos...');
-      final photos = await widget.photoService.getPhotos();
-      setState(() {
-        _photos = photos;
-      });
-    } catch (e) {
-      debugPrint('Error loading photos: $e');
-      throw PhotoLoadError(
-        message: 'Error loading photos: $e',
-      );
-    }
-  }
-
-  Future<void> _deleteSelectedPhotos() async {
-    for (Photo photo in _selectedPhotos) {
-      try {
-        await widget.photoService.deletePhoto(photo.id);
-        setState(() {
-          _photos.remove(photo);
-        });
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to delete ${photo.filename}')),
-        );
-      }
-    }
-    setState(() {
-      _selectedPhotos.clear();
-      _isSelectionMode = false;
-    });
-  }
-
-  void _showFullScreenImage(BuildContext context, Photo photo) {
-    final currentIndex = _photos.indexOf(photo);
-    if (currentIndex == -1) return;
-
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => FullScreenPhotoViewer(
-          photos: _photos,
-          initialIndex: currentIndex,
-          isGenerating: _isGenerating,
-          cacheService: widget.cacheService,
-          onGenerateMore: (additionalPrompt, count, seed) {
-            Navigator.pop(context);
-            _triggerMoreLikeThis(additionalPrompt, count, seed, photo);
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGridItem(Photo photo) {
-    final isSelected = _selectedPhotos.contains(photo);
-
-    return PhotoErrorBoundary(
-      onRetry: () => _loadPhotos,
-      child: GestureDetector(
-        onTap: () {
-          if (_isSelectionMode) {
-            setState(() {
-              if (isSelected) {
-                _selectedPhotos.remove(photo);
-                if (_selectedPhotos.isEmpty) {
-                  _isSelectionMode = false;
-                }
-              } else {
-                _selectedPhotos.add(photo);
-              }
-            });
-          } else {
-            _showFullScreenImage(context, photo);
-          }
-        },
-        onLongPress: () {
-          if (!_isSelectionMode) {
-            setState(() {
-              _isSelectionMode = true;
-              _selectedPhotos.add(photo);
-            });
-          }
-        },
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Hero(
-              tag: photo.id,
-              child: CachedNetworkImage(
-                imageUrl: _getThumbnailUrl(photo),
-                cacheManager:
-                    (widget.cacheService as PhotoCacheManager).cacheManager,
-                imageBuilder: (context, imageProvider) {
-                  final provider = _getImageProvider(photo);
-                  return Container(
-                    decoration: BoxDecoration(
-                      image: DecorationImage(
-                        image: provider,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  );
-                },
-                placeholder: (context, url) {
-                  if (_imageCache.containsKey(photo)) {
-                    return Container(
-                      decoration: BoxDecoration(
-                        image: DecorationImage(
-                          image: _imageCache[photo]!,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    );
-                  }
-
-                  return Container(
-                    color: Colors.grey[300],
-                    child: const Center(
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  );
-                },
-                errorWidget: (context, url, error) {
-                  throw PhotoLoadError();
-                },
-              ),
-            ),
-            if (isSelected)
-              Container(
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: Theme.of(context).colorScheme.primary,
-                    width: 3,
-                  ),
-                  color: Colors.black26,
-                ),
-                child: const Center(
-                  child: Icon(
-                    Icons.check_circle,
-                    color: Colors.white,
-                    size: 30,
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
-    super.build(context);
+    final columnCount = _calculateColumnCount(context);
 
-    return PhotoErrorBoundary(
-      onRetry: _loadPhotos,
-      child: Scaffold(
-        appBar: AppBar(
-          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-          title: _isSelectionMode
-              ? Text('${_selectedPhotos.length} selected')
-              : const Text('Photo Gallery'),
-          actions: [
-            if (_isSelectionMode) ...[
-              IconButton(
-                icon: const Icon(Icons.delete),
-                onPressed: _deleteSelectedPhotos,
+    return GradientScaffold(
+      appBar: AppBar(
+        title: const Text('Photo Gallery'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: onRefresh,
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Padding(
+            padding: EdgeInsets.only(
+              top: MediaQuery.of(context).padding.top +
+                  kToolbarHeight, // Space for AppBar
+            ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return RefreshIndicator(
+                  onRefresh: onRefresh,
+                  child: GridView.builder(
+                    padding: const EdgeInsets.all(8),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: columnCount,
+                      mainAxisSpacing: 8,
+                      crossAxisSpacing: 8,
+                      childAspectRatio: 1,
+                    ),
+                    itemCount: photos.length,
+                    itemBuilder: (context, index) {
+                      final photo = photos[index];
+                      return _buildPhotoCard(context, photo, index);
+                    },
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    controller: ScrollController(keepScrollOffset: false),
+                  ),
+                );
+              },
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, -2),
+                  ),
+                ],
               ),
-              IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: () {
-                  setState(() {
-                    _selectedPhotos.clear();
-                    _isSelectionMode = false;
-                  });
+              child: SafeArea(
+                top: false, // Don't add padding at top
+                left: false, // Don't add padding at left
+                right: false, // Don't add padding at right
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildActionButton(
+                        context,
+                        icon: Icons.add_photo_alternate_outlined,
+                        label: 'Add',
+                      ),
+                      _buildActionButton(
+                        context,
+                        icon: Icons.favorite_border,
+                        label: 'Favorites',
+                      ),
+                      _buildActionButton(
+                        context,
+                        icon: Icons.collections_outlined,
+                        label: 'Albums',
+                      ),
+                      _buildActionButton(
+                        context,
+                        icon: Icons.settings_outlined,
+                        label: 'Settings',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPhotoCard(BuildContext context, Photo photo, int index) {
+    final isNarrow = MediaQuery.of(context).size.width < _narrowScreenWidth;
+
+    return Card(
+      elevation: isNarrow ? 2 : 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(isNarrow ? 8 : 12),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Image with Hero animation
+            Hero(
+              tag: photo.id,
+              child: Image(
+                image: PhotoCacheImageProvider(
+                  url: photo.thumbnailUrl ?? photo.fullImageUrl!,
+                  cacheService: photoService.getCacheService(),
+                ),
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return const Center(
+                    child: Icon(
+                      Icons.error_outline,
+                      color: Colors.red,
+                      size: 32,
+                    ),
+                  );
+                },
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Center(
+                    child: CircularProgressIndicator(
+                      value: loadingProgress.expectedTotalBytes != null
+                          ? loadingProgress.cumulativeBytesLoaded /
+                              loadingProgress.expectedTotalBytes!
+                          : null,
+                    ),
+                  );
                 },
               ),
-            ],
+            ),
+            // Ripple effect and touch feedback
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => onPhotoTap(photo),
+                splashColor: Colors.white24,
+                highlightColor: Colors.white10,
+              ),
+            ),
+            // Optional: Add a gradient overlay at the bottom
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Container(
+                height: 48,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [
+                      Colors.black.withOpacity(0.6),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+                padding: const EdgeInsets.all(8),
+                child: Text(
+                  index.toString(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
           ],
         ),
-        body: RefreshIndicator(
-          onRefresh: () async {
-            try {
-              await _loadPhotos();
-            } catch (e) {
-              throw PhotoLoadError();
-            }
-          },
-          child: GridView.builder(
-            cacheExtent: MediaQuery.of(context).size.height * 2,
-            padding: const EdgeInsets.all(8),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              crossAxisSpacing: 8,
-              mainAxisSpacing: 8,
-            ),
-            itemCount: _photos.length,
-            itemBuilder: (context, index) => _buildGridItem(_photos[index]),
+      ),
+    );
+  }
+
+  Widget _buildActionButton(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+  }) {
+    return InkWell(
+      onTap: () {
+        // Show a snackbar for now
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$label action not implemented'),
+            duration: const Duration(seconds: 1),
           ),
+        );
+      },
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ),
       ),
     );

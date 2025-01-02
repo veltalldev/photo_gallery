@@ -1,4 +1,6 @@
 // lib/services/interfaces/i_photo_service.dart
+import 'package:photo_gallery/services/interfaces/i_cache_service.dart';
+
 import '../../models/domain/photo.dart';
 
 abstract class IPhotoService {
@@ -16,4 +18,7 @@ abstract class IPhotoService {
     required int count,
     int? seed,
   });
+
+  // New method
+  ICacheService getCacheService();
 }
