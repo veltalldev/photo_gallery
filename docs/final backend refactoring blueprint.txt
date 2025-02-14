@@ -1,0 +1,225 @@
+```
+backend/
+├── core/                          # Core infrastructure
+│   ├── config/                    # Configuration management
+│   │   ├── __init__.py
+│   │   ├── models/               # Configuration models
+│   │   │   ├── __init__.py
+│   │   │   ├── processing.py     # Image processing configs
+│   │   │   ├── storage.py        # Storage configs
+│   │   │   └── cache.py          # Cache configs
+│   │   ├── providers/            # Config providers
+│   │   │   ├── __init__.py
+│   │   │   ├── env.py           # Environment-based config
+│   │   │   └── file.py          # File-based config
+│   │   └── settings.py           # Application settings
+│   ├── dependencies/              # FastAPI dependency injection
+│   │   ├── __init__.py
+│   │   ├── services.py           # Service dependencies
+│   │   ├── storage.py            # Storage dependencies
+│   │   └── security.py           # Security dependencies
+│   └── exceptions/                # Custom exceptions
+│       ├── __init__.py
+│       ├── app_exceptions.py      # Base exceptions
+│       ├── processing/           # Processing-specific errors
+│       │   ├── __init__.py
+│       │   ├── thumbnail.py      # Thumbnail-specific errors
+│       │   └── storage.py        # Storage-related errors
+│       └── external/             # External service errors
+│           ├── __init__.py
+│           └── invoke_ai.py      # InvokeAI-specific errors
+│
+├── api/                           # API layer
+│   ├── v1/                        # API version 1
+│   │   ├── __init__.py
+│   │   ├── router.py             # Main API router
+│   │   └── endpoints/            # API endpoints
+│   │       ├── __init__.py
+│   │       ├── photos.py         # Photo-related endpoints
+│   │       ├── generation.py     # Image generation endpoints
+│   │       └── thumbnails.py     # Thumbnail endpoints
+│   └── middleware/                # API middleware
+│       ├── __init__.py
+│       ├── error_handler.py      # Error handling middleware
+│       └── auth.py               # Authentication middleware
+│
+├── domain/                        # Domain layer
+│   ├── models/                    # Domain models
+│   │   ├── __init__.py
+│   │   ├── photo.py              # Photo entity
+│   │   └── metadata.py           # Photo metadata
+│   ├── schemas/                   # Pydantic schemas
+│   │   ├── __init__.py
+│   │   ├── requests/            # Request schemas
+│   │   │   ├── __init__.py
+│   │   │   └── generation.py    # Generation request schemas
+│   │   └── responses/           # Response schemas
+│   │       ├── __init__.py
+│   │       └── photos.py        # Photo response schemas
+│   └── interfaces/                # Abstract interfaces
+│       ├── __init__.py
+│       ├── repositories.py       # Repository interfaces
+│       └── services.py          # Service interfaces
+│
+├── infrastructure/                # Infrastructure layer
+│   ├── database/                  # Database management
+│   │   ├── __init__.py
+│   │   ├── models.py             # SQLAlchemy models
+│   │   └── migrations/           # Alembic migrations
+│   ├── storage/                   # File storage
+│   │   ├── __init__.py
+│   │   ├── base.py              # Abstract storage interface
+│   │   ├── local.py             # Local storage implementation
+│   │   └── cloud.py             # Cloud storage implementation
+│   ├── cache/                    # Caching infrastructure
+│   │   ├── __init__.py
+│   │   ├── strategies/          # Cache implementations
+│   │   │   ├── __init__.py
+│   │   │   ├── memory.py        # In-memory caching
+│   │   │   ├── filesystem.py    # File-based caching
+│   │   │   └── distributed.py   # Distributed caching
+│   │   └── policies/            # Cache policies
+│   │       ├── __init__.py
+│   │       ├── lru.py           # LRU cache policy
+│   │       └── ttl.py           # Time-based expiration
+│   ├── processing/               # Image processing
+│   │   ├── __init__.py
+│   │   ├── pipeline/            # Processing pipeline
+│   │   │   ├── __init__.py
+│   │   │   ├── processor.py     # Base processor interface
+│   │   │   ├── thumbnail.py     # Thumbnail generation
+│   │   │   └── optimize.py      # Image optimization
+│   │   └── providers/           # Processing providers
+│   │       ├── __init__.py
+│   │       ├── local.py         # Local processing
+│   │       └── distributed.py   # Distributed processing
+│   └── external/                 # External services
+│       ├── __init__.py
+│       └── invoke_ai/           # InvokeAI integration
+│           ├── __init__.py
+│           ├── client.py        # API client
+│           ├── models.py        # Request/response models
+│           └── adapters.py      # Data adaptation layer
+│
+├── services/                      # Business logic layer
+│   ├── __init__.py
+│   ├── base.py                   # Base service class
+│   ├── photo_service.py          # Photo management service
+│   ├── generation_service.py     # Image generation service
+│   ├── thumbnail_service.py      # Thumbnail processing service
+│   └── metadata_service.py       # Metadata extraction service
+│
+├── repositories/                  # Data access layer
+│   ├── __init__.py
+│   ├── base.py                   # Base repository class
+│   ├── photo_repository.py       # Photo repository
+│   └── metadata_repository.py    # Metadata repository
+│
+├── utils/                         # Utility functions
+│   ├── __init__.py
+│   ├── image_processing.py       # Image processing utilities
+│   └── validation.py             # Validation utilities
+│
+├── tests/                         # Tests mirror main structure
+│   ├── conftest.py               # Test configuration
+│   ├── api/
+│   ├── services/
+│   ├── repositories/
+│   └── infrastructure/
+│       ├── processing/
+│       ├── cache/
+│       └── external/
+│
+├── alembic.ini                    # Alembic configuration
+├── requirements.txt               # Project dependencies
+├── main.py                        # Application entry point
+└── README.md                      # Project documentation
+```
+
+## FastAPI Dependency Injection Integration
+
+### Key Changes from Original Structure
+
+1. Replaced `core/deps` with `core/dependencies`
+   - More aligned with FastAPI's dependency injection system
+   - Better organized by dependency type
+   - Clearer separation of concerns
+
+### Dependencies Structure Example
+
+```python
+# core/dependencies/services.py
+from fastapi import Depends
+from typing import Annotated
+
+from domain.interfaces.services import IPhotoService
+from services.photo_service import PhotoService
+from .storage import get_storage_provider
+
+async def get_photo_service(
+    storage = Depends(get_storage_provider)
+) -> IPhotoService:
+    return PhotoService(storage)
+
+PhotoServiceDep = Annotated[IPhotoService, Depends(get_photo_service)]
+
+# Usage in endpoints:
+@router.get("/photos")
+async def list_photos(
+    photo_service: PhotoServiceDep
+):
+    return await photo_service.list_photos()
+```
+
+### Benefits of FastAPI DI Integration
+
+1. **Testability**
+   - Easy mocking of dependencies
+   - Clear dependency chains
+   - Simplified testing setup
+
+2. **Maintainability**
+   - Clear dependency graph
+   - Centralized dependency management
+   - Type-safe dependency injection
+
+3. **Flexibility**
+   - Easy to swap implementations
+   - Runtime dependency resolution
+   - Scoped dependency lifecycle
+
+4. **Performance**
+   - FastAPI's dependency caching
+   - Optimized dependency resolution
+   - Efficient resource management
+
+## Original Architecture Notes
+
+[All previous sections about Key Changes and Rationale, Migration Strategy, etc. remain unchanged from the original document]
+
+## Key Changes and Rationale
+
+1. **Enhanced Processing Infrastructure**
+   - Dedicated pipeline structure for image processing
+   - Separation of concerns between pipeline and providers
+   - Extensible architecture for future processing needs
+
+2. **Robust Caching Layer**
+   - Flexible strategy pattern for different cache types
+   - Policy-based cache management
+   - Clear separation between cache implementation and policy
+
+3. **Improved External Service Integration**
+   - Dedicated InvokeAI module
+   - Clear separation of client, models, and adapters
+   - Extensible pattern for future external services
+
+4. **Granular Error Handling**
+   - Domain-specific error hierarchies
+   - Processing-specific error types
+   - External service error handling
+
+5. **Enhanced Configuration Management**
+   - Modular configuration system
+   - Separation of concerns in config models
+   - Flexible provider system for different config sources

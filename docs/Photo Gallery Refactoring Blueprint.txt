@@ -1,0 +1,481 @@
+# Photo Gallery Refactoring Blueprint
+
+## Project Goals and Priorities
+
+### Primary Goals
+1. Reproduce current functionality with improved organization (Priority: 9/10)
+   - Maintain all existing features
+   - Improve code organization and maintainability
+   - Enhance testing capabilities
+   - Better separation oflib/
+├── core/                          # Core infrastructure and utilities
+│   ├── di/                        # Dependency injection
+│   │   └── service_locator.dart   # Service location/DI container
+│   ├── errors/                    # Error handling
+│   │   └── app_error.dart         # Custom error types
+│   └── events/                    # Event handling
+│       └── event_bus.dart         # Application-wide event bus
+│
+├── data/                          # Data handling and processing
+│   ├── metadata/                  # Metadata handling
+│   │   ├── extractors/           # Metadata extraction implementations
+│   │   └── processors/           # Metadata processing logic
+│   └── cache/                     # Cache implementations
+│       └── managers/             # Cache management logic
+│
+├── features/                      # Feature-specific implementations
+│   ├── generation/               # Image generation feature
+│   │   ├── widgets/             # Generation-specific widgets
+│   │   │   ├── generation_dialog.dart
+│   │   │   └── generation_bottom_sheet.dart
+│   │   ├── services/            # Generation services
+│   │   └── models/              # Generation-specific models
+│   ├── offline/                  # Offline functionality
+│   │   ├── sync/                # Sync mechanisms
+│   │   │   ├── interfaces/
+│   │   │   └── impl/
+│   │   └── storage/             # Local storage handling
+│   └── albums/                   # Album organization feature
+│       ├── widgets/
+│       ├── services/
+│       └── models/
+│
+├── models/                        # Domain models
+│   ├── api/                      # API models
+│   │   ├── requests/            # API request models
+│   │   └── responses/           # API response models
+│   └── domain/                   # Core domain models
+│       ├── photo.dart           # Photo entity
+│       ├── photo_metadata.dart  # Photo metadata
+│       ├── app_settings.dart    # Application settings
+│       └── network_stats.dart   # Network statistics
+│
+├── repositories/                  # Data layer
+│   ├── interfaces/               # Repository interfaces
+│   │   ├── i_photo_repository.dart
+│   │   └── i_settings_repository.dart
+│   └── impl/                     # Repository implementations
+│       ├── photo_repository.dart
+│       └── settings_repository.dart
+│
+├── services/                      # Business logic layer
+│   ├── interfaces/               # Service interfaces
+│   │   ├── i_photo_service.dart
+│   │   ├── i_cache_service.dart
+│   │   ├── i_auth_service.dart
+│   │   ├── i_settings_service.dart
+│   │   └── i_network_monitor.dart
+│   ├── impl/                     # Service implementations
+│   ├── thumbnail/                # Thumbnail handling
+│   │   ├── interfaces/
+│   │   │   └── i_thumbnail_service.dart
+│   │   └── impl/
+│   │       └── thumbnail_service.dart
+│   ├── sharing/                  # Sharing features
+│   │   ├── interfaces/
+│   │   └── impl/
+│   ├── processing/               # Media processing
+│   │   ├── interfaces/
+│   │   └── impl/
+│   └── search/                   # Search functionality
+│       ├── interfaces/
+│       │   └── i_search_service.dart
+│       └── impl/
+│           └── search_service.dart
+│
+├── providers/                     # State management
+│   ├── photo_provider.dart
+│   ├── auth_provider.dart
+│   ├── settings_provider.dart
+│   ├── cache_provider.dart
+│   └── search_provider.dart
+│
+├── screens/                       # Full page screens
+│   ├── landing_page_screen.dart
+│   ├── gallery_screen.dart
+│   ├── network_stats_screen.dart
+│   └── photo_viewer_screen.dart
+│
+├── widgets/                       # Reusable UI components
+│   ├── common/                   # Shared widgets
+│   ├── gallery/                  # Gallery-specific widgets
+│   ├── auth/                     # Authentication widgets
+│   └── errors/                 # Error handling components
+│       ├── photo_error_boundary.dart
+│       ├── network_error_boundary.dart
+│       └── general_error_boundary.dart
+│
+├── utils/                         # Utility functions
+│   ├── constants.dart
+│   └── extensions.dart
+│
+└── main.dart                      # Application entry point
+
+test/                             # Test directory mirrors lib structure
+├── core/
+│   ├── errors/
+│   │   └── app_error_test.dart
+│   └── di/
+│       └── service_locator_test.dart
+├── features/
+│   ├── gallery/
+│   │   └── widgets/
+│   │       └── photo_grid_view_test.dart
+│   ├── generation/
+│   │   └── widgets/
+│   │       ├── generation_bottom_sheet_test.dart
+│   │       └── generation_dialog_test.dart
+│   └── viewer/
+│       └── widgets/
+│           └── full_screen_photo_viewer_test.dart
+├── repositories/
+│   └── impl/
+│       └── photo_repository_test.dart
+├── services/
+│   └── impl/
+│       ├── cache_service_test.dart
+│       └── photo_service_test.dart
+├── widgets/
+│   └── errors/
+│       ├── error_boundary_test.dart
+│       └── photo_error_boundary_test.dart
+├── helpers/
+│   ├── mock_helpers.dart
+│   └── test_utilities.dart
+└── integration/
+    └── photo_workflow_test.dart
+
+migrations/                        # Database and schema migrations
+├── schema/                       # Database schema versions
+└── scripts/                     # Migration scripts
+
+docs/                             # Project documentation
+├── architecture/                # Architecture decisions and diagrams
+├── api/                        # API documentation
+└── integration/                # Integration guides concerns
+
+2. Prepare for future development (Priority: 4/10)
+   - Support planned feature roadmap
+   - Enable easy addition of new features
+   - Maintain scalable architecture
+   - Support team collaboration
+
+## Directory Structure
+```
+lib/
+├── core/                          # Core infrastructure and utilities
+│   ├── di/                        # Dependency injection
+│   │   └── service_locator.dart   # Service location/DI container
+│   ├── errors/                    # Error handling
+│   │   └── app_error.dart         # Custom error types
+│   └── events/                    # Event handling
+│       └── event_bus.dart         # Application-wide event bus
+│
+├── data/                          # Data handling and processing
+│   ├── metadata/                  # Metadata handling
+│   │   ├── extractors/           # Metadata extraction implementations
+│   │   └── processors/           # Metadata processing logic
+│   └── cache/                     # Cache implementations
+│       └── managers/             # Cache management logic
+│
+├── features/                      # Feature-specific implementations
+│   ├── generation/               # Image generation feature
+│   │   ├── widgets/             # Generation-specific widgets
+│   │   │   ├── generation_dialog.dart
+│   │   │   └── generation_bottom_sheet.dart
+│   │   ├── services/            # Generation services
+│   │   └── models/              # Generation-specific models
+│   ├── offline/                  # Offline functionality
+│   │   ├── sync/                # Sync mechanisms
+│   │   │   ├── interfaces/
+│   │   │   └── impl/
+│   │   └── storage/             # Local storage handling
+│   └── albums/                   # Album organization feature
+│       ├── widgets/
+│       ├── services/
+│       └── models/
+│
+├── models/                        # Domain models
+│   ├── api/                      # API models
+│   │   ├── requests/            # API request models
+│   │   └── responses/           # API response models
+│   └── domain/                   # Core domain models
+│       ├── photo.dart           # Photo entity
+│       ├── photo_metadata.dart  # Photo metadata
+│       ├── app_settings.dart    # Application settings
+│       └── network_stats.dart   # Network statistics
+│
+├── repositories/                  # Data layer
+│   ├── interfaces/               # Repository interfaces
+│   │   ├── i_photo_repository.dart
+│   │   └── i_settings_repository.dart
+│   └── impl/                     # Repository implementations
+│       ├── photo_repository.dart
+│       └── settings_repository.dart
+│
+├── services/                      # Business logic layer
+│   ├── interfaces/               # Service interfaces
+│   │   ├── i_photo_service.dart
+│   │   ├── i_cache_service.dart
+│   │   ├── i_auth_service.dart
+│   │   ├── i_settings_service.dart
+│   │   └── i_network_monitor.dart
+│   ├── impl/                     # Service implementations
+│   ├── thumbnail/                # Thumbnail handling
+│   │   ├── interfaces/
+│   │   │   └── i_thumbnail_service.dart
+│   │   └── impl/
+│   │       └── thumbnail_service.dart
+│   ├── sharing/                  # Sharing features
+│   │   ├── interfaces/
+│   │   └── impl/
+│   ├── processing/               # Media processing
+│   │   ├── interfaces/
+│   │   └── impl/
+│   └── search/                   # Search functionality
+│       ├── interfaces/
+│       │   └── i_search_service.dart
+│       └── impl/
+│           └── search_service.dart
+│
+├── providers/                     # State management
+│   ├── photo_provider.dart
+│   ├── auth_provider.dart
+│   ├── settings_provider.dart
+│   ├── cache_provider.dart
+│   └── search_provider.dart
+│
+├── screens/                       # Full page screens
+│   ├── landing_page_screen.dart
+│   ├── gallery_screen.dart
+│   ├── network_stats_screen.dart
+│   └── photo_viewer_screen.dart
+│
+├── widgets/                       # Reusable UI components
+│   ├── common/                   # Shared widgets
+│   ├── gallery/                  # Gallery-specific widgets
+│   ├── auth/                     # Authentication widgets
+│   └── errors/                 # Error handling components
+│       ├── photo_error_boundary.dart
+│       ├── network_error_boundary.dart
+│       └── general_error_boundary.dart
+│
+├── utils/                         # Utility functions
+│   ├── constants.dart
+│   └── extensions.dart
+│
+└── main.dart                      # Application entry point
+
+test/                             # Test directory mirrors lib structure
+├── core/
+│   ├── errors/
+│   │   └── app_error_test.dart
+│   └── di/
+│       └── service_locator_test.dart
+├── features/
+│   ├── gallery/
+│   │   └── widgets/
+│   │       └── photo_grid_view_test.dart
+│   ├── generation/
+│   │   └── widgets/
+│   │       ├── generation_bottom_sheet_test.dart
+│   │       └── generation_dialog_test.dart
+│   └── viewer/
+│       └── widgets/
+│           └── full_screen_photo_viewer_test.dart
+├── repositories/
+│   └── impl/
+│       └── photo_repository_test.dart
+├── services/
+│   └── impl/
+│       ├── cache_service_test.dart
+│       └── photo_service_test.dart
+├── widgets/
+│   └── errors/
+│       ├── error_boundary_test.dart
+│       └── photo_error_boundary_test.dart
+├── helpers/
+│   ├── mock_helpers.dart
+│   └── test_utilities.dart
+└── integration/
+    └── photo_workflow_test.dart
+
+migrations/                        # Database and schema migrations
+├── schema/                       # Database schema versions
+└── scripts/                     # Migration scripts
+
+docs/                             # Project documentation
+├── architecture/                # Architecture decisions and diagrams
+├── api/                        # API documentation
+└── integration/                # Integration guides
+```
+
+## Component Priority Scores
+
+### Core Infrastructure (Priority: 9/10)
+- Error handling system
+- Dependency injection
+- Service interfaces
+- Repository interfaces
+
+### Data Layer (Priority: 8/10)
+- Photo repository
+- Cache implementation
+- Data models
+- API interfaces
+
+### Business Logic (Priority: 8/10)
+- Photo service
+- Cache service
+- Generation service
+- Error handling
+
+### UI Components (Priority: 7/10)
+- Photo grid
+- Full-screen viewer
+- Error boundaries
+- Loading states
+
+### Testing Infrastructure (Priority: 9/10)
+- Unit test framework
+- Widget test utilities
+- Integration test setup
+- Mock implementations
+
+## Implementation Strategy
+
+### Phase 1: Core Infrastructure (1-2 days)
+1. Set up new directory structure
+2. Create base interfaces
+3. Implement core DI container
+4. Establish basic error handling
+5. Set up error boundaries
+6. Initialize feature modules
+
+### Phase 2: Critical Features (2-3 days)
+1. Migrate photo service and models
+2. Implement repository layer
+3. Set up providers
+4. Migrate gallery components
+5. Implement thumbnail service
+6. Migrate generation functionality
+7. Set up API models
+
+### Phase 3: Supporting Features (1-2 days)
+1. Implement caching service
+2. Add common widgets
+3. Set up utils
+4. Migrate screens
+5. Set up documentation structure
+6. Initialize metadata handling
+
+### Phase 4: Testing (2-3 days)
+1. Set up testing infrastructure
+2. Implement service tests
+3. Create widget tests
+4. Add integration tests
+5. Verify error boundaries
+
+### Phase 5: Documentation (1-2 days)
+1. API documentation
+2. Architecture documentation
+3. Testing documentation
+4. Development guides
+
+## Success Criteria
+1. All current features functioning
+2. Improved code organization
+3. Test coverage >80%
+4. No regression bugs
+5. Clear extension points
+6. Documented architecture
+7. Performance maintained or improved
+8. Error boundaries validated
+9. Thumbnail optimization verified
+10. Offline architecture validated
+11. Search infrastructure ready
+
+## Risk Mitigation
+1. Incremental migration
+2. Feature parity testing
+3. Performance monitoring
+4. Rollback capability
+5. Detailed documentation
+6. Error boundary validation
+7. Migration dry runs
+8. Feature isolation testing
+9. Cache strategy validation
+
+## Review Points
+1. After Phase 1: Architecture and error handling review
+2. After Phase 2: Functionality and performance review
+3. After Phase 3: Documentation and organization review
+4. After Phase 4: Testing and validation review
+5. After Phase 5: Final acceptance review
+
+## Notes
+- Maintain backwards compatibility
+- Focus on clean interfaces
+- Document all major decisions
+- Monitor performance metrics
+- Regular backups
+- Progressive testing
+- Validate error boundaries
+- Verify thumbnail optimization
+- Test migration procedures
+- Ensure feature isolation
+- Validate offline capabilities
+- Monitor cache performance
+- Maintain security standards
+- Consider future scaling
+- Track technical debt
+
+## Future Considerations
+1. Database Integration
+   - Schema design
+   - Migration strategy
+   - Performance optimization
+   - Backup procedures
+
+2. Advanced Features
+   - Face recognition
+   - AI categorization
+   - Advanced search
+   - Batch processing
+
+3. Security Enhancements
+   - Authentication system
+   - Access control
+   - API security
+   - Data encryption
+
+4. Performance Optimization
+   - Caching strategies
+   - Image optimization
+   - Network efficiency
+   - Resource management
+
+## Maintenance Guidelines
+1. Code Quality
+   - Follow style guide
+   - Maintain test coverage
+   - Regular dependency updates
+   - Code review process
+
+2. Documentation
+   - Keep README updated
+   - Document API changes
+   - Update architecture docs
+   - Maintain change log
+
+3. Testing
+   - Run tests before merge
+   - Update test cases
+   - Monitor coverage
+   - Validate error handling
+
+4. Performance
+   - Regular profiling
+   - Optimize bottlenecks
+   - Monitor metrics
+   - User feedback analysis

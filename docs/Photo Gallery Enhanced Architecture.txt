@@ -1,0 +1,280 @@
+# Photo Gallery Enhanced Architecture
+
+## Overview
+
+This document outlines the architecture for enhancing the Photo Gallery app with tag-based prompt management, templates, and extensible batch operations.
+
+## Core Concepts
+
+### Tag System
+- Tags are the UI representation of prompt components
+- Simple conversion between comma-separated prompts and tag arrays
+- Example: "1girl, train station, cherry blossom" ↔ ["1girl", "train station", "cherry blossom"]
+
+### Templates
+- Predefined collections of tags
+- Can be system-provided or user-created
+- Stored as named tag arrays
+
+### Batch Operations
+- Framework for handling multi-photo operations
+- Initially supports deletion
+- Extensible for future operations (move, share, etc.)
+
+## Database Schema
+
+### Photos
+```sql
+CREATE TABLE photos (
+    id TEXT PRIMARY KEY,
+    filename TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    thumbnail_url TEXT,
+    full_url TEXT
+);
+```
+
+### Tags
+```sql
+CREATE TABLE tags (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    usage_count INTEGER DEFAULT 0
+);
+
+CREATE TABLE photo_tags (
+    photo_id TEXT,
+    tag_id INTEGER,
+    PRIMARY KEY (photo_id, tag_id),
+    FOREIGN KEY (photo_id) REFERENCES photos(id) ON DELETE CASCADE,
+    FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+);
+```
+
+### Templates
+```sql
+CREATE TABLE templates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    description TEXT,
+    is_system BOOLEAN DEFAULT FALSE
+);
+
+CREATE TABLE template_tags (
+    template_id INTEGER,
+    tag_id INTEGER,
+    tag_order INTEGER,
+    PRIMARY KEY (template_id, tag_id),
+    FOREIGN KEY (template_id) REFERENCES templates(id) ON DELETE CASCADE,
+    FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+);
+```
+
+## Frontend Architecture
+
+### Enhanced PhotoGridView
+```dart
+class PhotoGridView extends StatefulWidget {
+  // Existing properties
+  final List<Photo> photos;
+  final IPhotoService photoService;
+  
+  // New properties
+  final Set<String> selectedTags;  // For filtering
+  final SelectionMode selectionMode;
+  final List<BatchOperation> availableOperations;
+}
+
+enum SelectionMode {
+  none,
+  single,
+  multiple
+}
+
+class BatchOperation {
+  final String name;
+  final IconData icon;
+  final Future<void> Function(List<Photo>) onExecute;
+}
+```
+
+### Tag Management
+```dart
+class TagChipList extends StatelessWidget {
+  final List<String> tags;
+  final Function(String) onRemoveTag;
+  final Function(String) onAddTag;
+}
+
+class TagInputField extends StatefulWidget {
+  final Function(List<String>) onTagsAdded;
+  final TextEditingController? controller;
+}
+```
+
+### Template Management
+```dart
+class Template {
+  final String name;
+  final String description;
+  final List<String> tags;
+  final bool isSystem;
+}
+
+class TemplateList extends StatelessWidget {
+  final List<Template> templates;
+  final Function(Template) onTemplateSelected;
+  final Function(Template) onTemplateSave;
+}
+```
+
+## Backend Services
+
+### PhotoService Enhancements
+```dart
+abstract class IPhotoService {
+  // Existing methods
+  Future<List<Photo>> getPhotos();
+  Future<Photo?> getPhoto(String id);
+  
+  // New methods
+  Future<List<String>> getPhotoTags(String photoId);
+  Future<void> setPhotoTags(String photoId, List<String> tags);
+  Future<List<Photo>> getPhotosByTags(List<String> tags);
+}
+```
+
+### Template Service
+```dart
+abstract class ITemplateService {
+  Future<List<Template>> getTemplates();
+  Future<Template> createTemplate(String name, List<String> tags);
+  Future<void> deleteTemplate(int id);
+  Future<List<Template>> getSystemTemplates();
+}
+```
+
+### Batch Operations Service
+```dart
+abstract class IBatchOperationsService {
+  Future<void> deletePhotos(List<String> photoIds);
+  Future<void> movePhotosToAlbum(List<String> photoIds, String albumId);
+  Future<void> sharePhotos(List<String> photoIds);
+}
+```
+
+## Generation Flow
+
+1. User Interaction
+   ```
+   Select Base Image → Modify Tags → Select Template (Optional) → Generate
+   ```
+
+2. Data Flow
+   ```
+   UI Tags → Comma-separated String → InvokeAI API → New Images → Extract Tags → Store
+   ```
+
+3. Tag Extraction Process
+   ```dart
+   String promptString = invokeAiResponse.prompt;
+   List<String> tags = promptString
+       .split(',')
+       .map((t) => t.trim())
+       .where((t) => t.isNotEmpty)
+       .toList();
+   ```
+
+## Implementation Priorities
+
+1. Phase 1: Core Tag System
+   - Database implementation
+   - Tag extraction and storage
+   - Basic tag UI components
+
+2. Phase 2: Selection and Batch Operations
+   - Selection mode implementation
+   - Batch operations framework
+   - Initial delete operation
+
+3. Phase 3: Templates
+   - Template storage
+   - Template UI
+   - System templates
+
+4. Phase 4: Enhanced Generation
+   - Tag-based generation UI
+   - Template integration
+   - Tag filtering in grid
+
+## Migration Strategy
+
+1. Database Setup
+   ```sql
+   -- Run initial schema creation
+   -- Add system templates
+   -- Migrate existing photos
+   ```
+
+2. Code Migration
+   - Add new interfaces
+   - Implement tag storage
+   - Update UI components
+   - Add batch operations
+
+## Error Handling
+
+1. Tag-related Errors
+   ```dart
+   class TagError extends AppError {
+     TagError(String message, [dynamic cause]) : super(message, cause);
+   }
+   ```
+
+2. Template Errors
+   ```dart
+   class TemplateError extends AppError {
+     TemplateError(String message, [dynamic cause]) : super(message, cause);
+   }
+   ```
+
+3. Batch Operation Errors
+   ```dart
+   class BatchOperationError extends AppError {
+     BatchOperationError(String message, [dynamic cause]) : super(message, cause);
+   }
+   ```
+
+## Testing Strategy
+
+1. Unit Tests
+   - Tag conversion
+   - Template management
+   - Batch operations
+
+2. Widget Tests
+   - Tag UI components
+   - Selection mode
+   - Template UI
+
+3. Integration Tests
+   - Full generation flow
+   - Batch operations
+   - Template usage
+
+## Future Considerations
+
+1. Performance
+   - Tag indexing
+   - Batch operation optimization
+   - Template caching
+
+2. Extensibility
+   - New batch operations
+   - Advanced template features
+   - Tag categories/hierarchies
+
+3. UI/UX
+   - Tag auto-complete
+   - Drag-and-drop template creation
+   - Advanced filtering

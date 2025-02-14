@@ -1,0 +1,149 @@
+# Cache Service Refactoring Blueprint
+
+## Current vs Proposed Architecture
+
+### Current Structure
+```
+services/
+├── interfaces/
+│   ├── i_cache_service.dart        # Primary cache interface
+│   └── i_photo_cache_manager.dart  # Custom manager interface
+├── impl/
+│   └── cache_service.dart          # Service implementation
+└── cache/
+    └── managers/
+         └── photo_cache_manager.dart # Custom singleton manager
+```
+
+### Proposed Structure
+```
+services/
+├── interfaces/
+│   └── i_cache_service.dart        # Simplified cache interface
+├── impl/
+│   └── cache_service.dart          # Implementation using DefaultCacheManager
+└── cache/                          # [Future] Stats collection will go here
+```
+
+## Key Changes
+
+### 1. Interface Simplification
+- Remove i_photo_cache_manager.dart
+- Simplify i_cache_service.dart to work directly with DefaultCacheManager
+- Remove stats-related code (to be implemented separately later)
+
+### 2. Implementation Changes
+- Remove custom PhotoCacheManager singleton
+- Modify CacheService to use DefaultCacheManager directly
+- Implement proper dependency injection
+- Remove current stats collection
+
+### 3. Dependencies
+```yaml
+dependencies:
+  flutter_cache_manager: ^[latest_version]
+```
+
+## Modified Service Interface
+
+```dart
+abstract class ICacheService {
+  /// Stores data in the cache with the specified key
+  Future<void> put(String key, dynamic data, {Duration? maxAge});
+
+  /// Retrieves data from the cache by key
+  Future<T?> get<T>(String key);
+
+  /// Removes data from the cache by key
+  Future<void> remove(String key);
+
+  /// Clears all data from the cache
+  Future<void> clear();
+
+  /// Checks if the cache contains data for the specified key
+  Future<bool> containsKey(String key);
+}
+```
+
+## Service Locator Changes
+
+```dart
+// In service_locator.dart
+final GetIt serviceLocator = GetIt.instance;
+
+Future<void> setupServiceLocator() async {
+  // Cache Service
+  serviceLocator.registerLazySingleton<DefaultCacheManager>(
+    () => DefaultCacheManager(),
+  );
+  
+  serviceLocator.registerLazySingleton<ICacheService>(
+    () => CacheService(
+      cacheManager: serviceLocator<DefaultCacheManager>(),
+    ),
+  );
+  
+  // ... rest of service registration
+}
+```
+
+## Impact Analysis
+
+### Components Requiring Updates
+1. PhotoService
+   - Update cache interaction
+   - Remove stats handling
+
+2. PhotoRepository
+   - Update cache dependencies
+   - Remove stats handling
+
+3. Tests
+   - Rewrite cache-related tests
+   - Simplify mocking strategy
+
+### Unaffected Components
+1. UI Layer
+   - No changes required
+   - Cache interactions remain abstracted
+
+2. Error Handling
+   - Core error types remain same
+   - Only implementation details change
+
+## Future Considerations
+
+### Statistics Collection (Future Phase)
+- Will be implemented as separate service
+- No impact on core caching functionality
+- Can be added without modifying cache service
+
+### Testing Strategy
+1. Unit Tests
+   - Test CacheService with mocked DefaultCacheManager
+   - Focus on core caching operations
+
+2. Integration Tests
+   - Test with actual DefaultCacheManager
+   - Verify real file system interactions
+
+## Migration Steps
+
+1. Create New Branch
+   ```bash
+   git checkout -b refactor/cache-service-composition
+   ```
+
+2. Implementation Order
+   a. Create new ICacheService
+   b. Implement CacheService
+   c. Update service locator
+   d. Update dependent services
+   e. Add tests
+   f. Remove old implementations
+
+3. Validation Steps
+   - Verify all tests pass
+   - Check image loading works
+   - Verify cache operations
+   - Test error scenarios
