@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from ip_whitelist import setup_ip_whitelist
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
@@ -15,6 +16,9 @@ from typing import List, Dict, Any, Optional
 from fastapi.staticfiles import StaticFiles
 
 app = FastAPI()
+
+# Setup IP whitelist - must come before CORS middleware
+setup_ip_whitelist(app, whitelist_file="ip_whitelist.txt")
 
 # Enable CORS
 app.add_middleware(
